@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSales, useBulkUpdateSales } from "@/hooks/use-sales";
 import { StatCard } from "@/components/StatCard";
 import {
@@ -9,6 +9,7 @@ import {
   Search,
   Save,
   Loader2,
+  Download,
 } from "lucide-react";
 import { type DailySale } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +20,67 @@ export default function Sales() {
   const { toast } = useToast();
   const [localSales, setLocalSales] = useState<DailySale[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+
+  const handleExportCSV = useCallback(() => {
+    if (!localSales || localSales.length === 0) return;
+
+    try {
+      const headers = [
+        "SNo", "Brand No", "Brand Name", "Size", "Qty/Case", 
+        "Opening Bal (Btls)", "New Stock (Cs)", "New Stock (Btls)", 
+        "Total Stock", "Closing Bal (Cs)", "Closing Bal (Btls)", 
+        "Sold Bottles", "MRP", "Sale Value", "Breakage", 
+        "Total Closing Stock", "Final Closing Bal"
+      ];
+
+      const csvContent = [
+        headers.join(","),
+        ...localSales.map((item, idx) => {
+          const totalStock = (item.openingBalanceBottles || 0) + ((item.quantityPerCase || 0) * (item.newStockCases || 0)) + (item.newStockBottles || 0);
+          return [
+            idx + 1,
+            `"${item.brandNumber}"`,
+            `"${item.brandName}"`,
+            `"${item.size}"`,
+            item.quantityPerCase,
+            item.openingBalanceBottles,
+            item.newStockCases,
+            item.newStockBottles,
+            totalStock,
+            item.closingBalanceCases,
+            item.closingBalanceBottles,
+            item.soldBottles,
+            item.mrp,
+            item.saleValue,
+            item.breakageBottles,
+            item.totalClosingStock,
+            item.finalClosingBalance
+          ].join(",");
+        })
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `sales_report_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Export Successful",
+        description: "Sales data has been exported to CSV.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "There was an error exporting the data.",
+        variant: "destructive",
+      });
+    }
+  }, [localSales, toast]);
 
   // Sync local state when data loads
   useEffect(() => {
@@ -161,18 +223,28 @@ export default function Sales() {
             />
           </div>
 
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSaving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            Save Sales
-          </button>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <button
+              onClick={handleExportCSV}
+              className="flex items-center gap-2 px-6 py-2 bg-secondary text-secondary-foreground rounded-xl font-medium border border-border hover:bg-secondary/80 transition-all"
+            >
+              <Download className="w-4 h-4" />
+              Export CSV
+            </button>
+
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Save Sales
+            </button>
+          </div>
         </div>
 
         {/* Table */}
