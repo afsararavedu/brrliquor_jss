@@ -83,22 +83,22 @@ async function seedDatabase() {
     // Seed with data from Figma screenshot
     const seedData = [
       {
-        brandNumber: "3066",
-        brandName: "Monthly subscription",
-        size: "750ml",
+        brandNumber: "5029",
+        brandName: "KINGFISHER ULTRA LAGER BEER",
+        size: "650 ml",
         quantityPerCase: 12,
         openingBalanceBottles: 18,
-        newStockCases: 18,
+        newStockCases: 22,
         newStockBottles: 18,
         closingBalanceCases: 0,
-        closingBalanceBottles: 0,
+        closingBalanceBottles: 10,
         mrp: "880",
         totalSaleValue: "0"
       },
       {
-        brandNumber: "3065",
-        brandName: "Monthly subscription",
-        size: "375ml",
+        brandNumber: "0261",
+        brandName: "TI COURIER NAPOLEON FINEST PURE GRAPE FRENCH BRANDY",
+        size: "750 ml",
         quantityPerCase: 24,
         openingBalanceBottles: 21,
         newStockCases: 21,

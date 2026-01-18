@@ -20,6 +20,11 @@ export const dailySales = pgTable("daily_sales", {
   closingBalanceBottles: integer("closing_balance_bottles").default(0),
   mrp: numeric("mrp").notNull(),
   totalSaleValue: numeric("total_sale_value").default('0'), // Renamed from saleValue
+  soldBottles: integer("sold_bottles").default(0),
+  saleValue: numeric("sale_value").default('0'),
+  breakageBottles: integer("breakage_bottles").default(0),
+  totalClosingStock: integer("total_closing_stock").default(0),
+  finalClosingBalance: integer("final_closing_balance").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
