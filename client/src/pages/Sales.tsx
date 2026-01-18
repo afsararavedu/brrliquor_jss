@@ -184,7 +184,7 @@ export default function Sales() {
                 <th className="table-header w-24">Brand No</th>
                 <th className="table-header">Brand Name</th>
                 <th className="table-header w-24">Size</th>
-                <th className="table-header w-24">Quantity/Case</th>
+                <th className="table-header w-24">Quantity In Case</th>
                 <th className="table-header w-24">Opening Balance (Bottles)</th>
                 <th className="table-header w-32 text-right bg-green-50/50">New Stock (Cases)</th>
                 <th className="table-header w-32 text-right bg-green-50/50">New Stock (Bottles)</th>
@@ -196,12 +196,8 @@ export default function Sales() {
                   Closing Balance (Bottles)
                 </th>
                 <th className="table-header w-24 text-center">Sold Bottles</th>
-                <th className="table-header w-32 text-center bg-blue-50/50 font-bold text-blue-900">
-                  MRP
-                </th>
-                <th className="table-header w-32 text-right font-bold text-primary">
-                  Sale Value
-                </th>
+                <th className="table-header w-32 text-center"> MRP </th>
+                <th className="table-header w-32 text-right font-bold text-primary"> Sale Value </th>
                 <th className="table-header w-24 text-center">Breakage Bottles</th>
                 <th className="table-header w-32 text-center">Total Closing Stock (Bottles)</th>
                 <th className="table-header w-32 text-center">Final Closing Balance (in Bottles)</th>
@@ -283,17 +279,8 @@ export default function Sales() {
                     <td className="table-cell text-center font-mono">
                       {item.soldBottles}
                     </td>
-                    <td className="p-2 border-b border-border bg-blue-50/30">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.mrp || 0}
-                        onChange={(e) =>
-                          handleInputChange(item.id, "mrp", e.target.value)
-                        }
-                        className="w-full text-center p-1.5 rounded-md border border-blue-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
-                      />
+                    <td className="table-cell text-center font-mono bg-blue-50/10 group-hover:bg-blue-50/30">
+                      {item.mrp || 0}
                     </td>
                     <td className="table-cell text-right font-bold text-primary font-mono">
                       ₹{item.saleValue}
