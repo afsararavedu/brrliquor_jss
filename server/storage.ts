@@ -42,6 +42,11 @@ export class DatabaseStorage implements IStorage {
             openingBalanceBottles: sale.openingBalanceBottles,
             newStockCases: sale.newStockCases,
             newStockBottles: sale.newStockBottles,
+            soldBottles: sale.soldBottles,
+            saleValue: sale.saleValue,
+            breakageBottles: sale.breakageBottles,
+            totalClosingStock: sale.totalClosingStock,
+            finalClosingBalance: sale.finalClosingBalance,
           }
         })
         .returning();
