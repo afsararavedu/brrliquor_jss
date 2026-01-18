@@ -180,26 +180,26 @@ export default function Sales() {
           <table className="w-full min-w-[1200px]">
             <thead>
               <tr className="bg-secondary/30">
-                <th className="table-header w-24">SNo</th>
-                <th className="table-header w-24">Brand No</th>
-                <th className="table-header">Brand Name</th>
-                <th className="table-header w-24">Size</th>
-                <th className="table-header w-24">Quantity In Case</th>
-                <th className="table-header w-24">Opening Balance (Bottles)</th>
-                <th className="table-header w-32 text-right bg-green-50/50">New Stock (Cases)</th>
-                <th className="table-header w-32 text-right bg-green-50/50">New Stock (Bottles)</th>
-                <th className="table-header w-32 text-right">Total Stock</th>
-                <th className="table-header w-36 text-center bg-orange-50/80 border-l border-orange-100 font-bold text-orange-900">
+                <th className="table-header w-24 border-r border-border">SNo</th>
+                <th className="table-header w-24 border-r border-border">Brand No</th>
+                <th className="table-header border-r border-border">Brand Name</th>
+                <th className="table-header w-24 border-r border-border">Size</th>
+                <th className="table-header w-24 border-r border-border">Quantity In Case</th>
+                <th className="table-header w-24 border-r border-border">Opening Balance (Bottles)</th>
+                <th className="table-header w-32 text-right bg-green-50/50 border-r border-border">New Stock (Cases)</th>
+                <th className="table-header w-32 text-right bg-green-50/50 border-r border-border">New Stock (Bottles)</th>
+                <th className="table-header w-32 text-right border-r border-border">Total Stock</th>
+                <th className="table-header w-36 text-center bg-orange-50/80 border-l border-orange-100 font-bold text-orange-900 border-r border-border">
                   Closing Balance (Cases)
                 </th>
-                <th className="table-header w-36 text-center bg-orange-50/80 font-bold text-orange-900 border-r border-orange-100">
+                <th className="table-header w-36 text-center bg-orange-50/80 font-bold text-orange-900 border-r border-border">
                   Closing Balance (Bottles)
                 </th>
-                <th className="table-header w-24 text-center">Sold Bottles</th>
-                <th className="table-header w-32 text-center"> MRP </th>
-                <th className="table-header w-32 text-right font-bold text-primary"> Sale Value </th>
-                <th className="table-header w-24 text-center">Breakage Bottles</th>
-                <th className="table-header w-32 text-center">Total Closing Stock (Bottles)</th>
+                <th className="table-header w-24 text-center border-r border-border">Sold Bottles</th>
+                <th className="table-header w-32 text-center border-r border-border"> MRP </th>
+                <th className="table-header w-32 text-right font-bold text-primary border-r border-border"> Sale Value </th>
+                <th className="table-header w-24 text-center border-r border-border">Breakage Bottles</th>
+                <th className="table-header w-32 text-center border-r border-border">Total Closing Stock (Bottles)</th>
                 <th className="table-header w-32 text-center">Final Closing Balance (in Bottles)</th>
               </tr>
             </thead>
@@ -207,7 +207,7 @@ export default function Sales() {
               {filteredSales.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={15}
+                    colSpan={17}
                     className="py-12 text-center text-muted-foreground"
                   >
                     No sales records found matching "{searchTerm}"
@@ -221,32 +221,32 @@ export default function Sales() {
                     key={item.id}
                     className="hover:bg-muted/30 transition-colors group"
                   >
-                    <td className="table-cell font-mono text-xs text-muted-foreground">
+                    <td className="table-cell font-mono text-xs text-muted-foreground border-r border-border">
                       {idx + 1}
                     </td>
-                    <td className="table-cell font-mono text-xs text-muted-foreground">
+                    <td className="table-cell font-mono text-xs text-muted-foreground border-r border-border">
                       {item.brandNumber}
                     </td>
-                    <td className="table-cell font-medium">{item.brandName}</td>
-                    <td className="table-cell text-muted-foreground">
+                    <td className="table-cell font-medium border-r border-border">{item.brandName}</td>
+                    <td className="table-cell text-muted-foreground border-r border-border">
                       {item.size}
                     </td>
-                    <td className="table-cell text-muted-foreground">
+                    <td className="table-cell text-muted-foreground border-r border-border">
                       {item.quantityPerCase}
                     </td>
-                    <td className="table-cell text-right font-mono text-muted-foreground bg-blue-50/10 group-hover:bg-blue-50/30">
+                    <td className="table-cell text-right font-mono text-muted-foreground bg-blue-50/10 group-hover:bg-blue-50/30 border-r border-border">
                       {item.openingBalanceBottles}
                     </td>
-                    <td className="table-cell text-right font-mono text-muted-foreground bg-green-50/10 group-hover:bg-green-50/30">
+                    <td className="table-cell text-right font-mono text-muted-foreground bg-green-50/10 group-hover:bg-green-50/30 border-r border-border">
                       {item.newStockCases}
                     </td>
-                    <td className="table-cell text-right font-mono text-muted-foreground bg-green-50/10 group-hover:bg-green-50/30">
+                    <td className="table-cell text-right font-mono text-muted-foreground bg-green-50/10 group-hover:bg-green-50/30 border-r border-border">
                       {item.newStockBottles}
                     </td>
-                    <td className="table-cell text-right font-mono text-muted-foreground">
+                    <td className="table-cell text-right font-mono text-muted-foreground border-r border-border">
                       {totalStock}
                     </td>
-                    <td className="p-2 border-b border-border bg-orange-50/30 border-l border-orange-100">
+                    <td className="p-2 border-b border-border bg-orange-50/30 border-l border-orange-100 border-r border-border">
                       <input
                         type="number"
                         min="0"
@@ -261,7 +261,7 @@ export default function Sales() {
                         className="w-full text-center p-1.5 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
                       />
                     </td>
-                    <td className="p-2 border-b border-border bg-orange-50/30 border-r border-orange-100">
+                    <td className="p-2 border-b border-border bg-orange-50/30 border-r border-border">
                       <input
                         type="number"
                         min="0"
@@ -276,16 +276,16 @@ export default function Sales() {
                         className="w-full text-center p-1.5 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
                       />
                     </td>
-                    <td className="table-cell text-center font-mono">
+                    <td className="table-cell text-center font-mono border-r border-border">
                       {item.soldBottles}
                     </td>
-                    <td className="table-cell text-center font-mono bg-blue-50/10 group-hover:bg-blue-50/30">
+                    <td className="table-cell text-center font-mono bg-blue-50/10 group-hover:bg-blue-50/30 border-r border-border">
                       {item.mrp || 0}
                     </td>
-                    <td className="table-cell text-right font-bold text-primary font-mono">
+                    <td className="table-cell text-right font-bold text-primary font-mono border-r border-border">
                       ₹{item.saleValue}
                     </td>
-                    <td className="p-2 border-b border-border">
+                    <td className="p-2 border-b border-border border-r border-border">
                       <input
                         type="number"
                         min="0"
@@ -296,7 +296,7 @@ export default function Sales() {
                         className="w-full text-center p-1.5 rounded-md border border-input focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
                       />
                     </td>
-                    <td className="table-cell text-center font-mono">
+                    <td className="table-cell text-center font-mono border-r border-border">
                       {item.totalClosingStock}
                     </td>
                     <td className="table-cell text-center font-mono">
