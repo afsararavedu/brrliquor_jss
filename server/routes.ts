@@ -5,16 +5,14 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import multer from "multer";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const pdf = require("pdf-parse");
+import * as pdf from "pdf-parse";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Helper to parse PDF text into rows
 async function parsePdfOrders(buffer: Buffer) {
   // Use pdf.default if it exists, otherwise use pdf directly
-  const pdfParser = typeof pdf === 'function' ? pdf : pdf.default;
+  const pdfParser = (pdf as any).default || pdf;
   if (typeof pdfParser !== 'function') {
     throw new Error("pdf-parse is not a function");
   }
