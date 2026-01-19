@@ -43,6 +43,8 @@ export const orders = pgTable("orders", {
   ratePerCase: numeric("rate_per_case").default('0'),
   unitRatePerBottle: numeric("unit_rate_per_bottle").default('0'),
   totalAmount: numeric("total_amount").default('0'),
+  breakageBottleQty: integer("breakage_bottle_qty").default(0),
+  remarks: text("remarks"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

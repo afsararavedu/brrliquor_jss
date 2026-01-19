@@ -38,6 +38,8 @@ const EMPTY_ROW: InsertOrder = {
   ratePerCase: "0",
   unitRatePerBottle: "0",
   totalAmount: "0",
+  breakageBottleQty: 0,
+  remarks: "",
 };
 
 export default function Inventory() {
@@ -238,6 +240,8 @@ export default function Inventory() {
                   <th className="table-header w-32 text-right">Rate/Case</th>
                   <th className="table-header w-32 text-right">Rate/Btl</th>
                   <th className="table-header w-36 text-right font-bold text-primary bg-primary/5">Total</th>
+                  <th className="table-header w-32 text-right">Breakage Btl Qty</th>
+                  <th className="table-header w-48">Remarks</th>
                   <th className="table-header w-16"></th>
                 </tr>
               </thead>
@@ -334,6 +338,24 @@ export default function Inventory() {
 
                       <td className="table-cell text-right font-bold text-primary font-mono bg-primary/5">
                         ₹{row.totalAmount}
+                      </td>
+
+                      <td className="p-2 border-b border-border">
+                        <input 
+                          type="number" 
+                          className="input-field text-right font-mono" 
+                          value={row.breakageBottleQty ?? 0}
+                          onChange={(e) => handleRowChange(idx, "breakageBottleQty", parseInt(e.target.value, 10) || 0)}
+                        />
+                      </td>
+
+                      <td className="p-2 border-b border-border">
+                        <input 
+                          className="input-field" 
+                          placeholder="Remarks"
+                          value={row.remarks || ""}
+                          onChange={(e) => handleRowChange(idx, "remarks", e.target.value)}
+                        />
                       </td>
 
                       <td className="p-2 border-b border-border text-center">
