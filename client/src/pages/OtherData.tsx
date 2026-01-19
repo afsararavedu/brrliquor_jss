@@ -134,17 +134,17 @@ export default function OtherData() {
            <h2 className="text-xl font-bold font-display mb-4 text-foreground">Import Data</h2>
         </div>
         
-        <div className="md:col-span-2 bg-card rounded-2xl border border-border p-8 shadow-sm hover:shadow-md transition-all">
-          <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/20 rounded-xl p-8 bg-secondary/10 hover:bg-secondary/30 transition-colors">
-            <div className="p-4 bg-primary/5 rounded-full mb-4">
-              <UploadCloud className="w-10 h-10 text-primary" />
+        <div className="md:col-span-2 bg-card rounded-2xl border border-border p-4 shadow-sm hover:shadow-md transition-all">
+          <div className="flex flex-col items-center justify-center border-2 border-dashed border-muted-foreground/20 rounded-xl p-4 bg-secondary/10 hover:bg-secondary/30 transition-colors h-full">
+            <div className="p-2 bg-primary/5 rounded-full mb-2">
+              <UploadCloud className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="text-lg font-semibold text-foreground mb-2">Upload Spreadsheet</h3>
-            <p className="text-sm text-muted-foreground text-center mb-6 max-w-sm">
+            <h3 className="text-base font-semibold text-foreground mb-1">Upload Spreadsheet</h3>
+            <p className="text-xs text-muted-foreground text-center mb-3 max-w-sm">
               Drag and drop your Excel or CSV file here, or click to browse. Supported formats: .xlsx, .csv
             </p>
             
-            <div className="flex items-center gap-4 w-full max-w-md">
+            <div className="flex items-center gap-3 w-full max-w-md">
               <input 
                 ref={fileInputRef}
                 type="file" 
@@ -155,34 +155,34 @@ export default function OtherData() {
               />
               <label 
                 htmlFor="file-upload" 
-                className="flex-1 cursor-pointer flex items-center justify-center gap-2 px-4 py-2 border border-border bg-background rounded-lg hover:bg-muted transition-colors text-sm font-medium"
+                className="flex-1 cursor-pointer flex items-center justify-center gap-2 px-3 py-1.5 border border-border bg-background rounded-lg hover:bg-muted transition-colors text-xs font-medium"
               >
-                <File className="w-4 h-4" />
+                <File className="w-3 h-3" />
                 {selectedFile ? selectedFile.name : "Choose File..."}
               </label>
               
               <button
                 onClick={handleUpload}
                 disabled={!selectedFile || isUploading}
-                className="px-6 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-primary/20"
+                className="px-4 py-1.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-primary/20 text-xs"
               >
-                {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Upload"}
+                {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Upload"}
               </button>
             </div>
           </div>
         </div>
 
-        <div className="md:col-span-1 bg-gradient-to-br from-primary/90 to-orange-600 rounded-2xl p-8 text-white shadow-lg shadow-primary/25 flex flex-col justify-between">
+        <div className="md:col-span-1 bg-gradient-to-br from-primary/90 to-orange-600 rounded-2xl p-4 text-white shadow-lg shadow-primary/25 flex flex-col justify-between">
           <div>
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mb-6 backdrop-blur-sm">
-              <FileSpreadsheet className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mb-3 backdrop-blur-sm">
+              <FileSpreadsheet className="w-5 h-5 text-white" />
             </div>
-            <h3 className="text-2xl font-display font-bold mb-2">Templates</h3>
-            <p className="text-white/80 text-sm leading-relaxed">
+            <h3 className="text-lg font-display font-bold mb-1">Templates</h3>
+            <p className="text-white/80 text-xs leading-relaxed">
               Download the official template to ensure your data is formatted correctly before uploading.
             </p>
           </div>
-          <button className="mt-8 w-full py-3 bg-white text-primary font-bold rounded-xl hover:bg-white/90 active:scale-95 transition-all shadow-xl">
+          <button className="mt-4 w-full py-2 bg-white text-primary font-bold rounded-xl hover:bg-white/90 active:scale-95 transition-all shadow-xl text-xs">
             Download Template
           </button>
         </div>
