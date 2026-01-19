@@ -10,7 +10,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Sales from "@/pages/Sales";
 import Stock from "@/pages/Stock";
-import OtherData from "@/pages/OtherData";
+import Inventory from "@/pages/Inventory";
 import Reports from "@/pages/Reports";
 import AuthPage from "@/pages/AuthPage";
 import ResetPassword from "@/pages/ResetPassword";
@@ -49,8 +49,8 @@ function Router() {
               <Route path="/stock">
                 <ProtectedRoute component={Stock} path="/stock" role="admin" />
               </Route>
-              <Route path="/other-data">
-                <ProtectedRoute component={OtherData} path="/other-data" role="admin" />
+              <Route path="/inventory">
+                <ProtectedRoute component={Inventory} path="/inventory" role="admin" />
               </Route>
               <Route path="/reports">
                 <ProtectedRoute component={Reports} path="/reports" role="admin" />

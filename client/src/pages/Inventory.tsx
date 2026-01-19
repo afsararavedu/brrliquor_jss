@@ -40,7 +40,7 @@ const EMPTY_ROW: InsertOrder = {
   totalAmount: "0",
 };
 
-export default function OtherData() {
+export default function Inventory() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
