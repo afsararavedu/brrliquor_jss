@@ -155,21 +155,11 @@ export default function Stock() {
                   <td className="table-cell font-medium">{item.brandName}</td>
                   <td className="table-cell text-muted-foreground">{item.size}</td>
                   <td className="table-cell text-center">{item.quantityPerCase}</td>
-                  <td className="p-2 border-b border-border bg-blue-50/5">
-                    <input
-                      type="number"
-                      value={item.stockInCases || 0}
-                      onChange={(e) => handleInputChange(item.id, "stockInCases", e.target.value)}
-                      className="w-full text-right p-1.5 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none font-mono"
-                    />
+                  <td className="table-cell text-right font-mono bg-blue-50/10 group-hover:bg-blue-50/30">
+                    {item.stockInCases || 0}
                   </td>
-                  <td className="p-2 border-b border-border bg-blue-50/5">
-                    <input
-                      type="number"
-                      value={item.stockInBottles || 0}
-                      onChange={(e) => handleInputChange(item.id, "stockInBottles", e.target.value)}
-                      className="w-full text-right p-1.5 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none font-mono"
-                    />
+                  <td className="table-cell text-right font-mono bg-blue-50/10 group-hover:bg-blue-50/30">
+                    {item.stockInBottles || 0}
                   </td>
                   <td className="table-cell text-right font-mono">{item.totalStockBottles}</td>
                   <td className="table-cell text-right font-mono">₹{item.mrp}</td>
