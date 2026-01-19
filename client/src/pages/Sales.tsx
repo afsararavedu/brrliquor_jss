@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { type DailySale } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { PaginationCustom } from "@/components/ui/pagination-custom";
 
 export default function Sales() {
   const { data: sales, isLoading } = useSales();
@@ -20,6 +21,8 @@ export default function Sales() {
   const { toast } = useToast();
   const [localSales, setLocalSales] = useState<DailySale[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const handleExportCSV = useCallback(() => {
     if (!localSales || localSales.length === 0) return;
@@ -161,6 +164,9 @@ export default function Sales() {
       item.brandNumber.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
+  const totalPages = Math.ceil(filteredSales.length / pageSize);
+  const paginatedSales = filteredSales.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   // Calculate totals for cards
   const totalSalesValue = localSales.reduce(
     (acc, curr) => acc + parseFloat(curr.totalSaleValue || "0"),
@@ -276,7 +282,7 @@ export default function Sales() {
               </tr>
             </thead>
             <tbody>
-              {filteredSales.length === 0 ? (
+              {paginatedSales.length === 0 ? (
                 <tr>
                   <td
                     colSpan={17}
@@ -286,100 +292,114 @@ export default function Sales() {
                   </td>
                 </tr>
               ) : (
-                filteredSales.map((item, idx) => {
+                paginatedSales.map((item, idx) => {
+                  const globalIdx = (currentPage - 1) * pageSize + idx;
                   const totalStock = (item.openingBalanceBottles || 0) + ((item.quantityPerCase || 0) * (item.newStockCases || 0)) + (item.newStockBottles || 0);
                   return (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-muted/30 transition-colors group"
-                  >
-                    <td className="table-cell font-mono text-xs text-muted-foreground border-r border-border h-12">
-                      {idx + 1}
-                    </td>
-                    <td className="table-cell font-mono text-xs text-muted-foreground border-r border-border h-12">
-                      {item.brandNumber}
-                    </td>
-                    <td className="table-cell font-medium border-r border-border h-12">{item.brandName}</td>
-                    <td className="table-cell text-muted-foreground border-r border-border h-12">
-                      {item.size}
-                    </td>
-                    <td className="table-cell text-muted-foreground border-r border-border h-12">
-                      {item.quantityPerCase}
-                    </td>
-                    <td className="table-cell text-right font-mono text-muted-foreground bg-blue-50/10 group-hover:bg-blue-50/30 border-r border-border h-12">
-                      {item.openingBalanceBottles}
-                    </td>
-                    <td className="table-cell text-right font-mono text-muted-foreground bg-green-50/10 group-hover:bg-green-50/30 border-r border-border h-12">
-                      {item.newStockCases}
-                    </td>
-                    <td className="table-cell text-right font-mono text-muted-foreground bg-green-50/10 group-hover:bg-green-50/30 border-r border-border h-12">
-                      {item.newStockBottles}
-                    </td>
-                    <td className="table-cell text-right font-mono text-muted-foreground border-r border-border h-12">
-                      {totalStock}
-                    </td>
-                    <td className="table-cell p-2 bg-orange-50/30 border-r border-border h-12">
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.closingBalanceCases || 0}
-                        onChange={(e) =>
-                          handleInputChange(
-                            item.id,
-                            "closingBalanceCases",
-                            e.target.value,
-                          )
-                        }
-                        className="w-full text-center p-1.5 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
-                      />
-                    </td>
-                    <td className="table-cell p-2 bg-orange-50/30 border-r border-border h-12">
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.closingBalanceBottles || 0}
-                        onChange={(e) =>
-                          handleInputChange(
-                            item.id,
-                            "closingBalanceBottles",
-                            e.target.value,
-                          )
-                        }
-                        className="w-full text-center p-1.5 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
-                      />
-                    </td>
-                    <td className="table-cell text-center font-mono border-r border-border h-12">
-                      {item.soldBottles}
-                    </td>
-                    <td className="table-cell text-center font-mono bg-blue-50/10 group-hover:bg-blue-50/30 border-r border-border h-12">
-                      {item.mrp || 0}
-                    </td>
-                    <td className="table-cell text-right font-bold text-primary font-mono border-r border-border h-12">
-                      ₹{item.saleValue}
-                    </td>
-                    <td className="table-cell p-2 border-r border-border h-12">
-                      <input
-                        type="number"
-                        min="0"
-                        value={item.breakageBottles || 0}
-                        onChange={(e) =>
-                          handleInputChange(item.id, "breakageBottles", e.target.value)
-                        }
-                        className="w-full text-center p-1.5 rounded-md border border-input focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
-                      />
-                    </td>
-                    <td className="table-cell text-center font-mono border-r border-border h-12">
-                      {item.totalClosingStock}
-                    </td>
-                    <td className="table-cell text-center font-mono h-12">
-                      {item.finalClosingBalance}
-                    </td>
-                  </tr>
-                );})
+                    <tr
+                      key={item.id}
+                      className="hover:bg-muted/30 transition-colors group"
+                    >
+                      <td className="table-cell font-mono text-xs text-muted-foreground border-r border-border h-12">
+                        {globalIdx + 1}
+                      </td>
+                      <td className="table-cell font-mono text-xs text-muted-foreground border-r border-border h-12">
+                        {item.brandNumber}
+                      </td>
+                      <td className="table-cell font-medium border-r border-border h-12">{item.brandName}</td>
+                      <td className="table-cell text-muted-foreground border-r border-border h-12">
+                        {item.size}
+                      </td>
+                      <td className="table-cell text-muted-foreground border-r border-border h-12">
+                        {item.quantityPerCase}
+                      </td>
+                      <td className="table-cell text-right font-mono text-muted-foreground bg-blue-50/10 group-hover:bg-blue-50/30 border-r border-border h-12">
+                        {item.openingBalanceBottles}
+                      </td>
+                      <td className="table-cell text-right font-mono text-muted-foreground bg-green-50/10 group-hover:bg-green-50/30 border-r border-border h-12">
+                        {item.newStockCases}
+                      </td>
+                      <td className="table-cell text-right font-mono text-muted-foreground bg-green-50/10 group-hover:bg-green-50/30 border-r border-border h-12">
+                        {item.newStockBottles}
+                      </td>
+                      <td className="table-cell text-right font-mono text-muted-foreground border-r border-border h-12">
+                        {totalStock}
+                      </td>
+                      <td className="table-cell p-2 bg-orange-50/30 border-r border-border h-12">
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.closingBalanceCases || 0}
+                          onChange={(e) =>
+                            handleInputChange(
+                              item.id,
+                              "closingBalanceCases",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full text-center p-1.5 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
+                        />
+                      </td>
+                      <td className="table-cell p-2 bg-orange-50/30 border-r border-border h-12">
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.closingBalanceBottles || 0}
+                          onChange={(e) =>
+                            handleInputChange(
+                              item.id,
+                              "closingBalanceBottles",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full text-center p-1.5 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
+                        />
+                      </td>
+                      <td className="table-cell text-center font-mono border-r border-border h-12">
+                        {item.soldBottles}
+                      </td>
+                      <td className="table-cell text-center font-mono bg-blue-50/10 group-hover:bg-blue-50/30 border-r border-border h-12">
+                        {item.mrp || 0}
+                      </td>
+                      <td className="table-cell text-right font-bold text-primary font-mono border-r border-border h-12">
+                        ₹{item.saleValue}
+                      </td>
+                      <td className="table-cell p-2 border-r border-border h-12">
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.breakageBottles || 0}
+                          onChange={(e) =>
+                            handleInputChange(item.id, "breakageBottles", e.target.value)
+                          }
+                          className="w-full text-center p-1.5 rounded-md border border-input focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                        />
+                      </td>
+                      <td className="table-cell text-center font-mono border-r border-border h-12">
+                        {item.totalClosingStock}
+                      </td>
+                      <td className="table-cell text-center font-mono h-12">
+                        {item.finalClosingBalance}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+
+        <PaginationCustom
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+          totalItems={filteredSales.length}
+        />
 
         <div className="p-4 border-t border-border bg-secondary/20 flex justify-end">
           <button

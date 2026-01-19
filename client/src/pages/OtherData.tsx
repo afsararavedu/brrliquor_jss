@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { type InsertOrder } from "@shared/schema";
 import { cn } from "@/lib/utils";
+import { PaginationCustom } from "@/components/ui/pagination-custom";
 
 // Dropdown Options
 const PRODUCT_TYPES = ["Beer", "IML", "Wine"];
@@ -50,6 +51,11 @@ export default function OtherData() {
   // Orders Table State
   const { mutate: saveOrders, isPending: isSaving } = useBulkCreateOrders();
   const [rows, setRows] = useState<InsertOrder[]>([{ ...EMPTY_ROW }]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const totalPages = Math.ceil(rows.length / pageSize);
+  const paginatedRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   // --- Handlers for File Upload ---
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,18 +91,19 @@ export default function OtherData() {
 
   // --- Handlers for Order Form ---
   const handleRowChange = (index: number, field: keyof InsertOrder, value: any) => {
+    const globalIndex = (currentPage - 1) * pageSize + index;
     const newRows = [...rows];
-    newRows[index] = { ...newRows[index], [field]: value };
+    newRows[globalIndex] = { ...newRows[globalIndex], [field]: value };
     
     // Auto-calculate Total
     if (['qtyCasesDelivered', 'qtyBottlesDelivered', 'ratePerCase', 'unitRatePerBottle'].includes(field)) {
-      const cases = Number(newRows[index].qtyCasesDelivered) || 0;
-      const bottles = Number(newRows[index].qtyBottlesDelivered) || 0;
-      const rateCase = parseFloat(newRows[index].ratePerCase as string) || 0;
-      const rateBottle = parseFloat(newRows[index].unitRatePerBottle as string) || 0;
+      const cases = Number(newRows[globalIndex].qtyCasesDelivered) || 0;
+      const bottles = Number(newRows[globalIndex].qtyBottlesDelivered) || 0;
+      const rateCase = parseFloat(newRows[globalIndex].ratePerCase as string) || 0;
+      const rateBottle = parseFloat(newRows[globalIndex].unitRatePerBottle as string) || 0;
       
       const total = (cases * rateCase) + (bottles * rateBottle);
-      newRows[index].totalAmount = total.toFixed(2);
+      newRows[globalIndex].totalAmount = total.toFixed(2);
     }
 
     setRows(newRows);
@@ -105,8 +112,13 @@ export default function OtherData() {
   const addRow = () => setRows([...rows, { ...EMPTY_ROW }]);
   
   const removeRow = (index: number) => {
+    const globalIndex = (currentPage - 1) * pageSize + index;
     if (rows.length === 1) return;
-    setRows(rows.filter((_, i) => i !== index));
+    const newRows = rows.filter((_, i) => i !== globalIndex);
+    setRows(newRows);
+    if (currentPage > Math.ceil(newRows.length / pageSize)) {
+      setCurrentPage(Math.max(1, currentPage - 1));
+    }
   };
 
   const handleSubmitOrders = () => {
@@ -230,112 +242,127 @@ export default function OtherData() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, idx) => (
-                  <tr key={idx} className="group hover:bg-muted/30 transition-colors">
-                    <td className="table-cell text-muted-foreground text-center">{idx + 1}</td>
-                    
-                    <td className="p-2 border-b border-border">
-                      <input 
-                        className="input-field" 
-                        placeholder="Ex: 3066"
-                        value={row.brandNumber}
-                        onChange={(e) => handleRowChange(idx, "brandNumber", e.target.value)}
-                      />
-                    </td>
-                    
-                    <td className="p-2 border-b border-border">
-                      <input 
-                        className="input-field" 
-                        placeholder="Brand Name"
-                        value={row.brandName}
-                        onChange={(e) => handleRowChange(idx, "brandName", e.target.value)}
-                      />
-                    </td>
-                    
-                    <td className="p-2 border-b border-border">
-                      <select 
-                        className="input-field"
-                        value={row.productType}
-                        onChange={(e) => handleRowChange(idx, "productType", e.target.value)}
-                      >
-                        {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </td>
+                {paginatedRows.map((row, idx) => {
+                  const globalIdx = (currentPage - 1) * pageSize + idx;
+                  return (
+                    <tr key={globalIdx} className="group hover:bg-muted/30 transition-colors">
+                      <td className="table-cell text-muted-foreground text-center">{globalIdx + 1}</td>
+                      
+                      <td className="p-2 border-b border-border">
+                        <input 
+                          className="input-field" 
+                          placeholder="Ex: 3066"
+                          value={row.brandNumber}
+                          onChange={(e) => handleRowChange(idx, "brandNumber", e.target.value)}
+                        />
+                      </td>
+                      
+                      <td className="p-2 border-b border-border">
+                        <input 
+                          className="input-field" 
+                          placeholder="Brand Name"
+                          value={row.brandName}
+                          onChange={(e) => handleRowChange(idx, "brandName", e.target.value)}
+                        />
+                      </td>
+                      
+                      <td className="p-2 border-b border-border">
+                        <select 
+                          className="input-field"
+                          value={row.productType}
+                          onChange={(e) => handleRowChange(idx, "productType", e.target.value)}
+                        >
+                          {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </td>
 
-                    <td className="p-2 border-b border-border">
-                      <select 
-                        className="input-field"
-                        value={row.packType}
-                        onChange={(e) => handleRowChange(idx, "packType", e.target.value)}
-                      >
-                        {PACK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                      </select>
-                    </td>
+                      <td className="p-2 border-b border-border">
+                        <select 
+                          className="input-field"
+                          value={row.packType}
+                          onChange={(e) => handleRowChange(idx, "packType", e.target.value)}
+                        >
+                          {PACK_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </td>
 
-                    <td className="p-2 border-b border-border">
-                      <select 
-                        className="input-field"
-                        value={row.packSize}
-                        onChange={(e) => handleRowChange(idx, "packSize", e.target.value)}
-                      >
-                        {PACK_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
-                    </td>
+                      <td className="p-2 border-b border-border">
+                        <select 
+                          className="input-field"
+                          value={row.packSize}
+                          onChange={(e) => handleRowChange(idx, "packSize", e.target.value)}
+                        >
+                          {PACK_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </td>
 
-                    <td className="p-2 border-b border-border bg-blue-50/10">
-                      <input 
-                        type="number" 
-                        className="input-field text-right font-mono" 
-                        value={row.qtyCasesDelivered ?? 0}
-                        onChange={(e) => handleRowChange(idx, "qtyCasesDelivered", parseInt(e.target.value, 10) || 0)}
-                      />
-                    </td>
+                      <td className="p-2 border-b border-border bg-blue-50/10">
+                        <input 
+                          type="number" 
+                          className="input-field text-right font-mono" 
+                          value={row.qtyCasesDelivered ?? 0}
+                          onChange={(e) => handleRowChange(idx, "qtyCasesDelivered", parseInt(e.target.value, 10) || 0)}
+                        />
+                      </td>
 
-                    <td className="p-2 border-b border-border bg-blue-50/10">
-                      <input 
-                        type="number" 
-                        className="input-field text-right font-mono" 
-                        value={row.qtyBottlesDelivered ?? 0}
-                        onChange={(e) => handleRowChange(idx, "qtyBottlesDelivered", parseInt(e.target.value, 10) || 0)}
-                      />
-                    </td>
+                      <td className="p-2 border-b border-border bg-blue-50/10">
+                        <input 
+                          type="number" 
+                          className="input-field text-right font-mono" 
+                          value={row.qtyBottlesDelivered ?? 0}
+                          onChange={(e) => handleRowChange(idx, "qtyBottlesDelivered", parseInt(e.target.value, 10) || 0)}
+                        />
+                      </td>
 
-                    <td className="p-2 border-b border-border">
-                      <input 
-                        type="number" 
-                        className="input-field text-right font-mono" 
-                        value={row.ratePerCase || ""}
-                        onChange={(e) => handleRowChange(idx, "ratePerCase", e.target.value)}
-                      />
-                    </td>
+                      <td className="p-2 border-b border-border">
+                        <input 
+                          type="number" 
+                          className="input-field text-right font-mono" 
+                          value={row.ratePerCase || ""}
+                          onChange={(e) => handleRowChange(idx, "ratePerCase", e.target.value)}
+                        />
+                      </td>
 
-                    <td className="p-2 border-b border-border">
-                      <input 
-                        type="number" 
-                        className="input-field text-right font-mono" 
-                        value={row.unitRatePerBottle || ""}
-                        onChange={(e) => handleRowChange(idx, "unitRatePerBottle", e.target.value)}
-                      />
-                    </td>
+                      <td className="p-2 border-b border-border">
+                        <input 
+                          type="number" 
+                          className="input-field text-right font-mono" 
+                          value={row.unitRatePerBottle || ""}
+                          onChange={(e) => handleRowChange(idx, "unitRatePerBottle", e.target.value)}
+                        />
+                      </td>
 
-                    <td className="table-cell text-right font-bold text-primary font-mono bg-primary/5">
-                      ₹{row.totalAmount}
-                    </td>
+                      <td className="table-cell text-right font-bold text-primary font-mono bg-primary/5">
+                        ₹{row.totalAmount}
+                      </td>
 
-                    <td className="p-2 border-b border-border text-center">
-                      <button 
-                        onClick={() => removeRow(idx)}
-                        disabled={rows.length === 1}
-                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="p-2 border-b border-border text-center">
+                        <button 
+                          onClick={() => removeRow(idx)}
+                          disabled={rows.length === 1}
+                          className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
+
+          <PaginationCustom
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(size) => {
+              setPageSize(size);
+              setCurrentPage(1);
+            }}
+            totalItems={rows.length}
+          />
           
           <div className="p-4 bg-muted/20 border-t border-border">
              <button 

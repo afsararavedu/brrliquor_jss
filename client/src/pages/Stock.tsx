@@ -14,12 +14,15 @@ import {
   Download,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { PaginationCustom } from "@/components/ui/pagination-custom";
 
 export default function Stock() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [localStock, setLocalStock] = useState<StockDetail[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   const { data: stock, isLoading } = useQuery<StockDetail[]>({
     queryKey: [api.stock.list.path],
@@ -87,6 +90,9 @@ export default function Stock() {
       item.brandNumber.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filteredStock.length / pageSize);
+  const paginatedStock = filteredStock.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+
   const totalValue = localStock.reduce((acc, curr) => acc + parseFloat(curr.totalStockValue || "0"), 0);
   const totalBottles = localStock.reduce((acc, curr) => acc + (curr.totalStockBottles || 0), 0);
   const totalBreakage = localStock.reduce((acc, curr) => acc + (curr.breakage || 0), 0);
@@ -148,40 +154,43 @@ export default function Stock() {
               </tr>
             </thead>
             <tbody>
-              {filteredStock.map((item, idx) => (
-                <tr key={item.id} className="hover:bg-muted/30 transition-colors group">
-                  <td className="table-cell text-center font-mono text-xs text-muted-foreground">{idx + 1}</td>
-                  <td className="table-cell font-mono text-xs text-muted-foreground">{item.brandNumber}</td>
-                  <td className="table-cell font-medium">{item.brandName}</td>
-                  <td className="table-cell text-muted-foreground">{item.size}</td>
-                  <td className="table-cell text-center">{item.quantityPerCase}</td>
-                  <td className="table-cell text-right font-mono bg-blue-50/10 group-hover:bg-blue-50/30">
-                    {item.stockInCases || 0}
-                  </td>
-                  <td className="table-cell text-right font-mono bg-blue-50/10 group-hover:bg-blue-50/30">
-                    {item.stockInBottles || 0}
-                  </td>
-                  <td className="table-cell text-right font-mono">{item.totalStockBottles}</td>
-                  <td className="table-cell text-right font-mono">₹{item.mrp}</td>
-                  <td className="table-cell text-right font-bold text-primary font-mono bg-primary/5">₹{item.totalStockValue}</td>
-                  <td className="p-2 border-b border-border">
-                    <input
-                      type="number"
-                      value={item.breakage || 0}
-                      onChange={(e) => handleInputChange(item.id, "breakage", e.target.value)}
-                      className="w-full text-right p-1.5 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none font-mono"
-                    />
-                  </td>
-                  <td className="p-2 border-b border-border">
-                    <input
-                      type="text"
-                      value={item.remarks || ""}
-                      onChange={(e) => handleInputChange(item.id, "remarks", e.target.value)}
-                      className="w-full p-1.5 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none text-sm"
-                    />
-                  </td>
-                </tr>
-              ))}
+              {paginatedStock.map((item, idx) => {
+                const globalIdx = (currentPage - 1) * pageSize + idx;
+                return (
+                  <tr key={item.id} className="hover:bg-muted/30 transition-colors group">
+                    <td className="table-cell text-center font-mono text-xs text-muted-foreground">{globalIdx + 1}</td>
+                    <td className="table-cell font-mono text-xs text-muted-foreground">{item.brandNumber}</td>
+                    <td className="table-cell font-medium">{item.brandName}</td>
+                    <td className="table-cell text-muted-foreground">{item.size}</td>
+                    <td className="table-cell text-center">{item.quantityPerCase}</td>
+                    <td className="table-cell text-right font-mono bg-blue-50/10 group-hover:bg-blue-50/30">
+                      {item.stockInCases || 0}
+                    </td>
+                    <td className="table-cell text-right font-mono bg-blue-50/10 group-hover:bg-blue-50/30">
+                      {item.stockInBottles || 0}
+                    </td>
+                    <td className="table-cell text-right font-mono">{item.totalStockBottles}</td>
+                    <td className="table-cell text-right font-mono">₹{item.mrp}</td>
+                    <td className="table-cell text-right font-bold text-primary font-mono bg-primary/5">₹{item.totalStockValue}</td>
+                    <td className="p-2 border-b border-border">
+                      <input
+                        type="number"
+                        value={item.breakage || 0}
+                        onChange={(e) => handleInputChange(item.id, "breakage", e.target.value)}
+                        className="w-full text-right p-1.5 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none font-mono"
+                      />
+                    </td>
+                    <td className="p-2 border-b border-border">
+                      <input
+                        type="text"
+                        value={item.remarks || ""}
+                        onChange={(e) => handleInputChange(item.id, "remarks", e.target.value)}
+                        className="w-full p-1.5 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none text-sm"
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
             <tfoot>
               <tr className="bg-muted/50 font-bold">
@@ -197,6 +206,18 @@ export default function Stock() {
             </tfoot>
           </table>
         </div>
+
+        <PaginationCustom
+          currentPage={currentPage}
+          totalPages={totalPages}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setCurrentPage(1);
+          }}
+          totalItems={filteredStock.length}
+        />
       </div>
     </div>
   );
