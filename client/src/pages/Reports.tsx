@@ -12,7 +12,8 @@ import {
   Cell,
   Legend
 } from "recharts";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DailySale, StockDetail } from "@shared/schema";
 import { format, startOfWeek, endOfWeek, isWithinInterval, parseISO } from "date-fns";
