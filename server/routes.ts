@@ -5,8 +5,43 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import multer from "multer";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Helper to parse PDF text into rows
+async function parsePdfOrders(buffer: Buffer) {
+  const data = await pdf(buffer);
+  const text = data.text;
+  const lines = text.split('\n');
+  const orders: any[] = [];
+
+  // Simple heuristic: look for lines that look like product rows
+  // Typical structure might be: BrandNo BrandName Type Pack Size QtyCases QtyBtls RateCase RateBtl Total
+  for (const line of lines) {
+    const parts = line.trim().split(/\s+/);
+    if (parts.length >= 5) {
+      // Example matching logic: if first part is a number (brand number)
+      if (/^\d+$/.test(parts[0])) {
+        orders.push({
+          brandNumber: parts[0],
+          brandName: parts.slice(1, parts.length - 8).join(" "), // Guessing brand name length
+          productType: "Beer", // Default
+          packType: "G",
+          packSize: "12 / 650 ml",
+          qtyCasesDelivered: parseInt(parts[parts.length - 5]) || 0,
+          qtyBottlesDelivered: parseInt(parts[parts.length - 4]) || 0,
+          ratePerCase: parts[parts.length - 3] || "0",
+          unitRatePerBottle: parts[parts.length - 2] || "0",
+          totalAmount: parts[parts.length - 1] || "0",
+        });
+      }
+    }
+  }
+  return orders;
+}
 
 import { setupAuth } from "./auth";
 import bcrypt from "bcryptjs";
@@ -86,15 +121,29 @@ export async function registerRoutes(
   });
   
   // Upload
-  app.post(api.upload.create.path, upload.single('file'), (req, res) => {
+  app.post(api.upload.create.path, upload.single('file'), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ message: "No file uploaded" });
     }
-    // In a real app, save to S3 or disk. Here just ack.
-    res.json({ 
-      message: "File uploaded successfully", 
-      filename: req.file.originalname 
-    });
+
+    if (!req.file.originalname.toLowerCase().endsWith('.pdf')) {
+      return res.status(400).json({ message: "Only PDF files are allowed" });
+    }
+
+    try {
+      const parsedOrders = await parsePdfOrders(req.file.buffer);
+      if (parsedOrders.length > 0) {
+        await storage.bulkCreateOrders(parsedOrders);
+      }
+
+      res.json({ 
+        message: `Successfully parsed and saved ${parsedOrders.length} orders from PDF`, 
+        filename: req.file.originalname,
+        ordersCount: parsedOrders.length
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to parse PDF: " + err.message });
+    }
   });
 
   // Seed Data

@@ -153,14 +153,14 @@ export default function Inventory() {
             </div>
             <h3 className="text-base font-semibold text-foreground mb-1">Upload Spreadsheet</h3>
             <p className="text-xs text-muted-foreground text-center mb-3 max-w-sm">
-              Drag and drop your Excel or CSV file here, or click to browse. Supported formats: .xlsx, .csv
+              Drag and drop your PDF file here, or click to browse. Supported formats: .pdf
             </p>
             
             <div className="flex items-center gap-3 w-full max-w-md">
               <input 
                 ref={fileInputRef}
                 type="file" 
-                accept=".xlsx,.csv"
+                accept=".pdf"
                 onChange={handleFileChange}
                 className="hidden" 
                 id="file-upload"
