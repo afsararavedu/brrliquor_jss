@@ -240,8 +240,8 @@ export default function Inventory() {
                   <th className="table-header w-32 text-right">Rate/Case</th>
                   <th className="table-header w-32 text-right">Rate/Btl</th>
                   <th className="table-header w-36 text-right font-bold text-primary bg-primary/5">Total</th>
-                  <th className="table-header w-32 text-right">Breakage Btl Qty</th>
-                  <th className="table-header w-48">Remarks</th>
+                  <th className="table-header w-32 text-right min-h-[48px] py-2">Breakage Btl Qty</th>
+                  <th className="table-header w-48 min-h-[48px] py-2">Remarks</th>
                   <th className="table-header w-16"></th>
                 </tr>
               </thead>

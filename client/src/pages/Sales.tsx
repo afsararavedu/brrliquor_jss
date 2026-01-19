@@ -258,27 +258,27 @@ export default function Sales() {
           <table className="w-full min-w-[1200px]">
             <thead>
               <tr className="bg-secondary/30">
-                <th className="table-header w-24 border-r border-border h-12">SNo</th>
-                <th className="table-header w-24 border-r border-border h-12">Brand No</th>
-                <th className="table-header border-r border-border h-12">Brand Name</th>
-                <th className="table-header w-24 border-r border-border h-12">Size</th>
-                <th className="table-header w-24 border-r border-border h-12">Quantity In Case</th>
-                <th className="table-header w-24 border-r border-border h-12">Opening Balance (Bottles)</th>
-                <th className="table-header w-32 text-right bg-green-50/50 border-r border-border h-12">New Stock (Cases)</th>
-                <th className="table-header w-32 text-right bg-green-50/50 border-r border-border h-12">New Stock (Bottles)</th>
-                <th className="table-header w-32 text-right border-r border-border h-12">Total Stock</th>
-                <th className="table-header w-36 text-center bg-orange-50/80 border-l border-orange-100 font-bold text-orange-900 border-r border-border h-12">
+                <th className="table-header w-24 border-r border-border min-h-[48px] py-2">SNo</th>
+                <th className="table-header w-24 border-r border-border min-h-[48px] py-2">Brand No</th>
+                <th className="table-header border-r border-border min-h-[48px] py-2">Brand Name</th>
+                <th className="table-header w-24 border-r border-border min-h-[48px] py-2">Size</th>
+                <th className="table-header w-24 border-r border-border min-h-[48px] py-2">Quantity In Case</th>
+                <th className="table-header w-24 border-r border-border min-h-[48px] py-2">Opening Balance (Bottles)</th>
+                <th className="table-header w-32 text-right bg-green-50/50 border-r border-border min-h-[48px] py-2">New Stock (Cases)</th>
+                <th className="table-header w-32 text-right bg-green-50/50 border-r border-border min-h-[48px] py-2">New Stock (Bottles)</th>
+                <th className="table-header w-32 text-right border-r border-border min-h-[48px] py-2">Total Stock</th>
+                <th className="table-header w-36 text-center bg-orange-50/80 border-l border-orange-100 font-bold text-orange-900 border-r border-border min-h-[48px] py-2">
                   Closing Balance (Cases)
                 </th>
-                <th className="table-header w-36 text-center bg-orange-50/80 font-bold text-orange-900 border-r border-border h-12">
+                <th className="table-header w-36 text-center bg-orange-50/80 font-bold text-orange-900 border-r border-border min-h-[48px] py-2">
                   Closing Balance (Bottles)
                 </th>
-                <th className="table-header w-24 text-center border-r border-border h-12">Sold Bottles</th>
-                <th className="table-header w-32 text-center border-r border-border h-12"> MRP </th>
-                <th className="table-header w-32 text-right font-bold text-primary border-r border-border h-12"> Sale Value </th>
-                <th className="table-header w-24 text-center border-r border-border h-12">Breakage Bottles</th>
-                <th className="table-header w-32 text-center border-r border-border h-12">Total Closing Stock (Bottles)</th>
-                <th className="table-header w-32 text-center h-12">Final Closing Balance (in Bottles)</th>
+                <th className="table-header w-24 text-center border-r border-border min-h-[48px] py-2">Sold Bottles</th>
+                <th className="table-header w-32 text-center border-r border-border min-h-[48px] py-2"> MRP </th>
+                <th className="table-header w-32 text-right font-bold text-primary border-r border-border min-h-[48px] py-2"> Sale Value </th>
+                <th className="table-header w-24 text-center border-r border-border min-h-[48px] py-2">Breakage Bottles</th>
+                <th className="table-header w-32 text-center border-r border-border min-h-[48px] py-2">Total Closing Stock (Bottles)</th>
+                <th className="table-header w-32 text-center min-h-[48px] py-2">Final Closing Balance (in Bottles)</th>
               </tr>
             </thead>
             <tbody>
