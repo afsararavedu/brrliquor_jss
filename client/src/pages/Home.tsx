@@ -3,7 +3,7 @@ import { ArrowRight, TrendingUp, Package, FileText, ShoppingCart } from "lucide-
 
 export default function Home() {
   return (
-    <div className="max-w-5xl mx-auto py-12 px-4 animate-in fade-in zoom-in duration-500">
+    <div className="max-w-5xl mx-auto py-12 px-4 animate-in fade-in zoom-in duration-500 select-none">
       <div className="text-center mb-16 space-y-4">
         <h1 className="text-5xl font-display font-bold text-foreground">
           Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-600">PourPoint Inc.</span>
@@ -38,7 +38,7 @@ export default function Home() {
 
         {/* Card 2: Inventory */}
         <Link href="/inventory">
-          <div className="group relative bg-card rounded-3xl p-8 border border-border shadow-sm hover:shadow-2xl hover:border-blue-500/30 transition-all duration-300 cursor-pointer overflow-hidden">
+          <div className="group relative bg-card rounded-3xl p-8 border border-border shadow-sm hover:shadow-2xl hover:border-blue-500/30 transition-all duration-300 cursor-pointer overflow-hidden select-none">
              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-bl-full -mr-8 -mt-8 group-hover:scale-110 transition-transform duration-500" />
             
             <div className="relative z-10">

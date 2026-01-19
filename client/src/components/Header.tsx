@@ -12,7 +12,7 @@ export function Header() {
   };
 
   return (
-    <header className="h-20 border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-40 flex items-center justify-between px-8 transition-all">
+    <header className="h-20 border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-40 flex items-center justify-between px-8 transition-all select-none">
       <div className="flex flex-col">
         <h2 className="text-2xl font-display font-bold text-foreground">{getTitle()}</h2>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
