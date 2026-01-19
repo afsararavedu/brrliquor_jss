@@ -1,14 +1,25 @@
 
-import { db } from "./db";
 import { 
-  dailySales, orders, stockDetails,
+  dailySales, orders, stockDetails, users,
   type DailySale, type InsertDailySale,
   type Order, type InsertOrder,
-  type StockDetail, type InsertStockDetail
+  type StockDetail, type InsertStockDetail,
+  type User, type InsertUser
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { db } from "./db";
+
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
+  // Users
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, user: Partial<User>): Promise<User>;
+  
   // Sales
   getDailySales(): Promise<DailySale[]>;
   bulkUpdateDailySales(sales: InsertDailySale[]): Promise<DailySale[]>;
@@ -20,9 +31,43 @@ export interface IStorage {
   // Stock
   getStockDetails(): Promise<StockDetail[]>;
   bulkUpdateStockDetails(stock: InsertStockDetail[]): Promise<StockDetail[]>;
+
+  sessionStore: session.Store;
 }
 
 export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    this.sessionStore = new PostgresSessionStore({
+      conObject: {
+        connectionString: process.env.DATABASE_URL,
+      },
+      createTableIfMissing: true,
+    });
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+
+  async updateUser(id: number, partialUser: Partial<User>): Promise<User> {
+    const [user] = await db.update(users).set(partialUser).where(eq(users.id, id)).returning();
+    return user;
+  }
+
   // Sales
   async getDailySales(): Promise<DailySale[]> {
     return await db.select().from(dailySales);

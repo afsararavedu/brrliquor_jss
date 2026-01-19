@@ -92,6 +92,25 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type StockDetail = typeof stockDetails.$inferSelect;
 export type InsertStockDetail = z.infer<typeof insertStockDetailSchema>;
 
+// User table for authentication and roles
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  role: text("role", { enum: ["admin", "employee"] }).notNull().default("employee"),
+  tempPassword: text("temp_password"),
+  mustResetPassword: boolean("must_reset_password").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({ 
+  id: true, 
+  createdAt: true 
+});
+
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
 // Request types
 export type BulkCreateDailySalesRequest = InsertDailySale[];
 export type BulkCreateOrdersRequest = InsertOrder[];
