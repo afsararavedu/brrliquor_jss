@@ -8,6 +8,7 @@ import { Header } from "@/components/Header";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Sales from "@/pages/Sales";
+import Stock from "@/pages/Stock";
 import OtherData from "@/pages/OtherData";
 
 function Router() {
@@ -21,10 +22,8 @@ function Router() {
             <Switch>
               <Route path="/" component={Home} />
               <Route path="/sales" component={Sales} />
+              <Route path="/stock" component={Stock} />
               <Route path="/other-data" component={OtherData} />
-              
-              {/* Placeholders for other routes to prevent 404 for demo */}
-              <Route path="/stock" component={() => <div className="p-12 text-center text-muted-foreground">Stock Module Coming Soon</div>} />
               <Route path="/reports" component={() => <div className="p-12 text-center text-muted-foreground">Reports Module Coming Soon</div>} />
               <Route path="/credits" component={() => <div className="p-12 text-center text-muted-foreground">Credits Module Coming Soon</div>} />
               <Route path="/calendar" component={() => <div className="p-12 text-center text-muted-foreground">Calendar Module Coming Soon</div>} />

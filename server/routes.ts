@@ -58,6 +58,28 @@ export async function registerRoutes(
       throw err;
     }
   });
+
+  // Stock
+  app.get(api.stock.list.path, async (req, res) => {
+    const stock = await storage.getStockDetails();
+    res.json(stock);
+  });
+
+  app.post(api.stock.bulkUpdate.path, async (req, res) => {
+    try {
+      const input = api.stock.bulkUpdate.input.parse(req.body);
+      const result = await storage.bulkUpdateStockDetails(input);
+      res.status(201).json(result);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({
+          message: err.errors[0].message,
+          field: err.errors[0].path.join('.'),
+        });
+      }
+      throw err;
+    }
+  });
   
   // Upload
   app.post(api.upload.create.path, upload.single('file'), (req, res) => {
@@ -123,5 +145,51 @@ async function seedDatabase() {
       }
     ];
     await storage.bulkUpdateDailySales(seedData);
+  }
+
+  const stock = await storage.getStockDetails();
+  if (stock.length === 0) {
+    const seedStock = [
+      {
+        brandNumber: "5029",
+        brandName: "KINGFISHER ULTRA LAGER BEER",
+        size: "650 ml",
+        quantityPerCase: 12,
+        stockInCases: 18,
+        stockInBottles: 11,
+        totalStockBottles: 245,
+        mrp: "350",
+        totalStockValue: "85750",
+        breakage: 1,
+        remarks: ""
+      },
+      {
+        brandNumber: "261",
+        brandName: "TI COURIER NAPOLEON FINEST PURE GRAPE FRENCH BRANDY",
+        size: "750 ml",
+        quantityPerCase: 12,
+        stockInCases: 21,
+        stockInBottles: 10,
+        totalStockBottles: 283,
+        mrp: "440",
+        totalStockValue: "124520",
+        breakage: 0,
+        remarks: ""
+      },
+      {
+        brandNumber: "605",
+        brandName: "TI MANSION HOUSE XO BRANDY",
+        size: "180 ml",
+        quantityPerCase: 48,
+        stockInCases: 20,
+        stockInBottles: 47,
+        totalStockBottles: 1157,
+        mrp: "120",
+        totalStockValue: "138840",
+        breakage: 2,
+        remarks: ""
+      }
+    ];
+    await storage.bulkUpdateStockDetails(seedStock);
   }
 }

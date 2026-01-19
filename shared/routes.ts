@@ -1,6 +1,6 @@
 
 import { z } from 'zod';
-import { insertDailySaleSchema, insertOrderSchema, dailySales, orders } from './schema';
+import { insertDailySaleSchema, insertOrderSchema, insertStockDetailSchema, dailySales, orders, stockDetails } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -45,6 +45,24 @@ export const api = {
       input: z.array(insertOrderSchema),
       responses: {
         201: z.array(z.custom<typeof orders.$inferSelect>()),
+        400: errorSchemas.validation,
+      },
+    },
+  },
+  stock: {
+    list: {
+      method: 'GET' as const,
+      path: '/api/stock',
+      responses: {
+        200: z.array(z.custom<typeof stockDetails.$inferSelect>()),
+      },
+    },
+    bulkUpdate: {
+      method: 'POST' as const,
+      path: '/api/stock/bulk',
+      input: z.array(insertStockDetailSchema),
+      responses: {
+        201: z.array(z.custom<typeof stockDetails.$inferSelect>()),
         400: errorSchemas.validation,
       },
     },

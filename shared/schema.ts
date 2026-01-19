@@ -45,6 +45,23 @@ export const orders = pgTable("orders", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Table for the "Stock" page (matching image_1768795267421.png)
+export const stockDetails = pgTable("stock_details", {
+  id: serial("id").primaryKey(),
+  brandNumber: text("brand_number").notNull().unique(),
+  brandName: text("brand_name").notNull(),
+  size: text("size").notNull(),
+  quantityPerCase: integer("quantity_per_case").notNull(),
+  stockInCases: integer("stock_in_cases").default(0),
+  stockInBottles: integer("stock_in_bottles").default(0),
+  totalStockBottles: integer("total_stock_bottles").default(0),
+  mrp: numeric("mrp").notNull(),
+  totalStockValue: numeric("total_stock_value").default('0'),
+  breakage: integer("breakage").default(0),
+  remarks: text("remarks"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // === SCHEMAS ===
 
 export const insertDailySaleSchema = createInsertSchema(dailySales).omit({ 
@@ -57,6 +74,11 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
   createdAt: true 
 });
 
+export const insertStockDetailSchema = createInsertSchema(stockDetails).omit({
+  id: true,
+  updatedAt: true
+});
+
 // === TYPES ===
 
 export type DailySale = typeof dailySales.$inferSelect;
@@ -65,6 +87,10 @@ export type InsertDailySale = z.infer<typeof insertDailySaleSchema>;
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 
+export type StockDetail = typeof stockDetails.$inferSelect;
+export type InsertStockDetail = z.infer<typeof insertStockDetailSchema>;
+
 // Request types
 export type BulkCreateDailySalesRequest = InsertDailySale[];
 export type BulkCreateOrdersRequest = InsertOrder[];
+export type BulkUpdateStockRequest = InsertStockDetail[];

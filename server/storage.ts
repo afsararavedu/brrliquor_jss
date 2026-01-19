@@ -1,9 +1,10 @@
 
 import { db } from "./db";
 import { 
-  dailySales, orders, 
+  dailySales, orders, stockDetails,
   type DailySale, type InsertDailySale,
-  type Order, type InsertOrder 
+  type Order, type InsertOrder,
+  type StockDetail, type InsertStockDetail
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
@@ -15,6 +16,10 @@ export interface IStorage {
   // Orders
   getOrders(): Promise<Order[]>;
   bulkCreateOrders(orders: InsertOrder[]): Promise<Order[]>;
+
+  // Stock
+  getStockDetails(): Promise<StockDetail[]>;
+  bulkUpdateStockDetails(stock: InsertStockDetail[]): Promise<StockDetail[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -63,6 +68,38 @@ export class DatabaseStorage implements IStorage {
   async bulkCreateOrders(ordersData: InsertOrder[]): Promise<Order[]> {
     if (ordersData.length === 0) return [];
     return await db.insert(orders).values(ordersData).returning();
+  }
+
+  // Stock
+  async getStockDetails(): Promise<StockDetail[]> {
+    return await db.select().from(stockDetails);
+  }
+
+  async bulkUpdateStockDetails(stockData: InsertStockDetail[]): Promise<StockDetail[]> {
+    const results: StockDetail[] = [];
+    for (const item of stockData) {
+      const [updated] = await db.insert(stockDetails)
+        .values(item)
+        .onConflictDoUpdate({
+          target: stockDetails.brandNumber,
+          set: {
+            brandName: item.brandName,
+            size: item.size,
+            quantityPerCase: item.quantityPerCase,
+            stockInCases: item.stockInCases,
+            stockInBottles: item.stockInBottles,
+            totalStockBottles: item.totalStockBottles,
+            mrp: item.mrp,
+            totalStockValue: item.totalStockValue,
+            breakage: item.breakage,
+            remarks: item.remarks,
+            updatedAt: new Date(),
+          }
+        })
+        .returning();
+      results.push(updated);
+    }
+    return results;
   }
 }
 
