@@ -13,7 +13,12 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Helper to parse PDF text into rows
 async function parsePdfOrders(buffer: Buffer) {
-  const data = await pdf(buffer);
+  // Use pdf.default if it exists, otherwise use pdf directly
+  const pdfParser = typeof pdf === 'function' ? pdf : pdf.default;
+  if (typeof pdfParser !== 'function') {
+    throw new Error("pdf-parse is not a function");
+  }
+  const data = await pdfParser(buffer);
   const text = data.text;
   const lines = text.split('\n');
   const orders: any[] = [];
