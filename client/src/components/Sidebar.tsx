@@ -11,19 +11,25 @@ import {
   LogOut
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 const NAV_ITEMS = [
-  { label: "Home", href: "/", icon: LayoutDashboard },
+  { label: "Home", href: "/", icon: LayoutDashboard, role: "admin" },
   { label: "Sales", href: "/sales", icon: ShoppingCart },
-  { label: "Other Data", href: "/other-data", icon: FileText },
-  { label: "Stock", href: "/stock", icon: Package },
-  { label: "Reports", href: "/reports", icon: BarChart3 },
-  { label: "Credits", href: "/credits", icon: CreditCard },
-  { label: "Calendar", href: "/calendar", icon: Calendar },
+  { label: "Other Data", href: "/other-data", icon: FileText, role: "admin" },
+  { label: "Stock", href: "/stock", icon: Package, role: "admin" },
+  { label: "Reports", href: "/reports", icon: BarChart3, role: "admin" },
+  { label: "Credits", href: "/credits", icon: CreditCard, role: "admin" },
+  { label: "Calendar", href: "/calendar", icon: Calendar, role: "admin" },
 ];
 
 export function Sidebar() {
   const [location] = useLocation();
+  const { user, logoutMutation } = useAuth();
+
+  const filteredNavItems = NAV_ITEMS.filter(item => 
+    !item.role || (user && user.role === item.role)
+  );
 
   return (
     <div className="hidden md:flex flex-col w-64 h-screen bg-card border-r border-border fixed left-0 top-0 z-50 shadow-xl shadow-black/5">
@@ -33,12 +39,12 @@ export function Sidebar() {
         </div>
         <div>
           <h1 className="font-display font-bold text-lg text-foreground leading-none">SalesPro</h1>
-          <p className="text-xs text-muted-foreground font-medium mt-1">v2.0 Dashboard</p>
+          <p className="text-xs text-muted-foreground font-medium mt-1">{user?.role === 'admin' ? 'Admin' : 'Employee'} Portal</p>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto py-6 px-4 space-y-1">
-        {NAV_ITEMS.map((item) => {
+        {filteredNavItems.map((item) => {
           const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
           return (
             <Link key={item.href} href={item.href}>
@@ -65,7 +71,14 @@ export function Sidebar() {
       </div>
 
       <div className="p-4 mt-auto border-t border-border/50">
-        <button className="flex items-center gap-3 px-4 py-3 rounded-xl w-full text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors">
+        <div className="px-4 py-3 mb-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">User</p>
+          <p className="text-sm font-medium truncate">{user?.username}</p>
+        </div>
+        <button 
+          onClick={() => logoutMutation.mutate()}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl w-full text-muted-foreground hover:bg-red-50 hover:text-red-600 transition-colors"
+        >
           <LogOut className="w-5 h-5" />
           <span className="font-medium text-sm">Logout</span>
         </button>

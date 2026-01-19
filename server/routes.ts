@@ -8,10 +8,14 @@ import multer from "multer";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+import { setupAuth } from "./auth";
+import bcrypt from "bcryptjs";
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  setupAuth(app);
 
   // Sales
   app.get(api.sales.list.path, async (req, res) => {
@@ -100,6 +104,31 @@ export async function registerRoutes(
 }
 
 async function seedDatabase() {
+  // Create admin and employee users if they don't exist
+  const adminUser = await storage.getUserByUsername("admin");
+  if (!adminUser) {
+    const hashedPassword = await bcrypt.hash("admin123", 10);
+    await storage.createUser({
+      username: "admin",
+      password: hashedPassword,
+      role: "admin",
+      tempPassword: null,
+      mustResetPassword: false
+    });
+  }
+
+  const employeeUser = await storage.getUserByUsername("employee");
+  if (!employeeUser) {
+    const hashedPassword = await bcrypt.hash("employee123", 10);
+    await storage.createUser({
+      username: "employee",
+      password: hashedPassword,
+      role: "employee",
+      tempPassword: null,
+      mustResetPassword: false
+    });
+  }
+
   const sales = await storage.getDailySales();
   if (sales.length === 0) {
     // Seed with data from Figma screenshot
