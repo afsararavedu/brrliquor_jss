@@ -30,28 +30,16 @@ export class DatabaseStorage implements IStorage {
 
   async bulkUpdateDailySales(salesData: InsertDailySale[]): Promise<DailySale[]> {
     const results: DailySale[] = [];
+    const today = new Date().toISOString().split('T')[0];
     
     for (const sale of salesData) {
       const [updated] = await db.insert(dailySales)
-        .values(sale)
+        .values({ ...sale, date: today })
         .onConflictDoUpdate({
           target: dailySales.brandNumber,
           set: {
-            closingBalanceCases: sale.closingBalanceCases,
-            closingBalanceBottles: sale.closingBalanceBottles,
-            mrp: sale.mrp,
-            totalSaleValue: sale.totalSaleValue,
-            brandName: sale.brandName,
-            size: sale.size,
-            quantityPerCase: sale.quantityPerCase,
-            openingBalanceBottles: sale.openingBalanceBottles,
-            newStockCases: sale.newStockCases,
-            newStockBottles: sale.newStockBottles,
-            soldBottles: sale.soldBottles,
-            saleValue: sale.saleValue,
-            breakageBottles: sale.breakageBottles,
-            totalClosingStock: sale.totalClosingStock,
-            finalClosingBalance: sale.finalClosingBalance,
+            ...sale,
+            date: today,
           }
         })
         .returning();
@@ -77,22 +65,15 @@ export class DatabaseStorage implements IStorage {
 
   async bulkUpdateStockDetails(stockData: InsertStockDetail[]): Promise<StockDetail[]> {
     const results: StockDetail[] = [];
+    const today = new Date().toISOString().split('T')[0];
     for (const item of stockData) {
       const [updated] = await db.insert(stockDetails)
-        .values(item)
+        .values({ ...item, date: today })
         .onConflictDoUpdate({
           target: stockDetails.brandNumber,
           set: {
-            brandName: item.brandName,
-            size: item.size,
-            quantityPerCase: item.quantityPerCase,
-            stockInCases: item.stockInCases,
-            stockInBottles: item.stockInBottles,
-            totalStockBottles: item.totalStockBottles,
-            mrp: item.mrp,
-            totalStockValue: item.totalStockValue,
-            breakage: item.breakage,
-            remarks: item.remarks,
+            ...item,
+            date: today,
             updatedAt: new Date(),
           }
         })

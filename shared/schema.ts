@@ -25,6 +25,7 @@ export const dailySales = pgTable("daily_sales", {
   breakageBottles: integer("breakage_bottles").default(0),
   totalClosingStock: integer("total_closing_stock").default(0),
   finalClosingBalance: integer("final_closing_balance").default(0),
+  date: date("date").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -59,6 +60,7 @@ export const stockDetails = pgTable("stock_details", {
   totalStockValue: numeric("total_stock_value").default('0'),
   breakage: integer("breakage").default(0),
   remarks: text("remarks"),
+  date: date("date").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
