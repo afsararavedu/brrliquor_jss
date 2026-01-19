@@ -69,7 +69,7 @@ export default function AuthPage() {
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-primary/20 mx-auto mb-4">
             S
           </div>
-          <CardTitle className="text-2xl font-bold">SalesPro Login</CardTitle>
+          <CardTitle className="text-2xl font-bold">PourPoint Inc. Login</CardTitle>
           <CardDescription>Enter your credentials to access your dashboard</CardDescription>
         </CardHeader>
         <CardContent>

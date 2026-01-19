@@ -38,7 +38,7 @@ export function Sidebar() {
           S
         </div>
         <div>
-          <h1 className="font-display font-bold text-lg text-foreground leading-none">SalesPro</h1>
+          <h1 className="font-display font-bold text-lg text-foreground leading-none">PourPoint Inc.</h1>
           <p className="text-xs text-muted-foreground font-medium mt-1">{user?.role === 'admin' ? 'Admin' : 'Employee'} Portal</p>
         </div>
       </div>

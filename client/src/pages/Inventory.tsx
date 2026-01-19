@@ -143,7 +143,7 @@ export default function Inventory() {
       {/* File Upload Section */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-3">
-           <h2 className="text-xl font-bold font-display mb-4 text-foreground">Import Data</h2>
+           <h2 className="text-xl font-bold font-display mb-4 text-foreground">Import Invoice cum Delivery Data</h2>
         </div>
         
         <div className="md:col-span-2 bg-card rounded-2xl border border-border p-4 shadow-sm hover:shadow-md transition-all">
