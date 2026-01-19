@@ -30,7 +30,7 @@ function Router() {
   const { user } = useAuth();
 
   return (
-    <div className="flex min-h-screen bg-background font-sans">
+    <div className="flex min-h-screen bg-background font-sans relative">
       {user && !user.mustResetPassword && <Sidebar />}
       <div className={`flex-1 ${user && !user.mustResetPassword ? 'md:pl-64' : ''} flex flex-col min-h-screen transition-all`}>
         {user && !user.mustResetPassword && <Header />}

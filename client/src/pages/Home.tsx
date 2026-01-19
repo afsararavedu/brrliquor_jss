@@ -36,8 +36,8 @@ export default function Home() {
           </div>
         </Link>
 
-        {/* Card 2: Other Data */}
-        <Link href="/other-data">
+        {/* Card 2: Inventory */}
+        <Link href="/inventory">
           <div className="group relative bg-card rounded-3xl p-8 border border-border shadow-sm hover:shadow-2xl hover:border-blue-500/30 transition-all duration-300 cursor-pointer overflow-hidden">
              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-bl-full -mr-8 -mt-8 group-hover:scale-110 transition-transform duration-500" />
             

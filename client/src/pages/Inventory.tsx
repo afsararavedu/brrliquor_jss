@@ -151,7 +151,7 @@ export default function Inventory() {
             <div className="p-2 bg-primary/5 rounded-full mb-2">
               <UploadCloud className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="text-base font-semibold text-foreground mb-1">Upload Spreadsheet</h3>
+            <h3 className="text-base font-semibold text-foreground mb-1">Upload Invoice</h3>
             <p className="text-xs text-muted-foreground text-center mb-3 max-w-sm">
               Drag and drop your PDF file here, or click to browse. Supported formats: .pdf
             </p>
