@@ -6,14 +6,16 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import multer from "multer";
 import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const pdf = require("pdf-parse");
+import * as pdfImport from "pdf-parse";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Helper to parse PDF text into rows
 async function parsePdfOrders(buffer: Buffer) {
   try {
+    const require = createRequire(import.meta.url);
+    const pdf = require("pdf-parse");
+    
     const data = await pdf(buffer);
     const text = data.text || "";
     const lines = text.split('\n');
