@@ -5,20 +5,31 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import multer from "multer";
-import { createRequire } from "module";
-import * as pdfImport from "pdf-parse";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Disable worker for Node.js environment
+pdfjsLib.GlobalWorkerOptions.workerSrc = "";
 
 // Helper to parse PDF text into rows
 async function parsePdfOrders(buffer: Buffer) {
   try {
-    const require = createRequire(import.meta.url);
-    const pdf = require("pdf-parse");
+    const uint8Array = new Uint8Array(buffer);
+    const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+    const pdfDoc = await loadingTask.promise;
     
-    const data = await pdf(buffer);
-    const text = data.text || "";
-    const lines = text.split('\n');
+    let fullText = "";
+    for (let i = 1; i <= pdfDoc.numPages; i++) {
+      const page = await pdfDoc.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(" ");
+      fullText += pageText + "\n";
+    }
+    
+    const lines = fullText.split('\n');
     const orders: any[] = [];
 
     // Simple heuristic: look for lines that look like product rows
