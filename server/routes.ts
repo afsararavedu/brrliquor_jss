@@ -5,45 +5,48 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import multer from "multer";
-import * as pdf from "pdf-parse";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdf = require("pdf-parse");
 
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Helper to parse PDF text into rows
 async function parsePdfOrders(buffer: Buffer) {
-  // Use pdf.default if it exists, otherwise use pdf directly
-  const pdfParser = (pdf as any).default || pdf;
-  if (typeof pdfParser !== 'function') {
-    throw new Error("pdf-parse is not a function");
-  }
-  const data = await pdfParser(buffer);
-  const text = data.text;
-  const lines = text.split('\n');
-  const orders: any[] = [];
+  try {
+    const data = await pdf(buffer);
+    const text = data.text || "";
+    const lines = text.split('\n');
+    const orders: any[] = [];
 
-  // Simple heuristic: look for lines that look like product rows
-  // Typical structure might be: BrandNo BrandName Type Pack Size QtyCases QtyBtls RateCase RateBtl Total
-  for (const line of lines) {
-    const parts = line.trim().split(/\s+/);
-    if (parts.length >= 5) {
-      // Example matching logic: if first part is a number (brand number)
-      if (/^\d+$/.test(parts[0])) {
-        orders.push({
-          brandNumber: parts[0],
-          brandName: parts.slice(1, parts.length - 8).join(" "), // Guessing brand name length
-          productType: "Beer", // Default
-          packType: "G",
-          packSize: "12 / 650 ml",
-          qtyCasesDelivered: parseInt(parts[parts.length - 5]) || 0,
-          qtyBottlesDelivered: parseInt(parts[parts.length - 4]) || 0,
-          ratePerCase: parts[parts.length - 3] || "0",
-          unitRatePerBottle: parts[parts.length - 2] || "0",
-          totalAmount: parts[parts.length - 1] || "0",
-        });
+    // Simple heuristic: look for lines that look like product rows
+    for (const line of lines) {
+      const parts = line.trim().split(/\s+/);
+      if (parts.length >= 5) {
+        // If first part is a number (brand number)
+        if (/^\d+$/.test(parts[0])) {
+          orders.push({
+            brandNumber: parts[0],
+            brandName: parts.slice(1, Math.max(2, parts.length - 7)).join(" "),
+            productType: "Beer", 
+            packType: "G",
+            packSize: "12 / 650 ml",
+            qtyCasesDelivered: parseInt(parts[parts.length - 5]) || 0,
+            qtyBottlesDelivered: parseInt(parts[parts.length - 4]) || 0,
+            ratePerCase: parts[parts.length - 3] || "0",
+            unitRatePerBottle: parts[parts.length - 2] || "0",
+            totalAmount: parts[parts.length - 1] || "0",
+            breakageBottleQty: 0,
+            remarks: ""
+          });
+        }
       }
     }
+    return orders;
+  } catch (err: any) {
+    console.error("PDF Parse Error:", err);
+    throw new Error("Could not parse PDF content: " + err.message);
   }
-  return orders;
 }
 
 import { setupAuth } from "./auth";
