@@ -72,12 +72,23 @@ export default function Inventory() {
     formData.append("file", selectedFile);
     
     uploadFile(formData, {
-      onSuccess: (data) => {
+      onSuccess: (data: any) => {
         toast({
-          title: "Upload Successful",
-          description: `File ${data.filename} uploaded successfully.`,
-          className: "bg-green-50 text-green-800 border-green-200"
+          title: "PDF Parsed",
+          description: `${data.ordersCount} items extracted. Review them in the table below and click 'Save Orders' to confirm.`,
+          className: "bg-blue-50 text-blue-800 border-blue-200"
         });
+        
+        if (data.orders && data.orders.length > 0) {
+          // Map to match InsertOrder structure exactly if needed
+          const newOrders = data.orders.map((o: any) => ({
+            ...EMPTY_ROW,
+            ...o
+          }));
+          setRows(newOrders);
+          setCurrentPage(1);
+        }
+        
         setSelectedFile(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
       },

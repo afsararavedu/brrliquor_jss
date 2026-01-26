@@ -135,13 +135,10 @@ export async function registerRoutes(
 
     try {
       const parsedOrders = await parsePdfOrders(req.file.buffer);
-      if (parsedOrders.length > 0) {
-        await storage.bulkCreateOrders(parsedOrders);
-      }
-
       res.json({ 
-        message: `Successfully parsed and saved ${parsedOrders.length} orders from PDF`, 
+        message: `Successfully parsed ${parsedOrders.length} orders from PDF. Please review and confirm before saving.`, 
         filename: req.file.originalname,
+        orders: parsedOrders,
         ordersCount: parsedOrders.length
       });
     } catch (err: any) {
