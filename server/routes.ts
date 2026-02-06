@@ -6,6 +6,8 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import multer from "multer";
 import * as XLSX from "xlsx";
+import fs from "fs";
+import path from "path";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -29,6 +31,7 @@ const COLUMN_MAP: Record<string, keyof typeof EMPTY_ORDER> = {
   "brandnumber": "brandNumber",
   "brand_number": "brandNumber",
   "brand no": "brandNumber",
+  "brand no.": "brandNumber",
   "brand name": "brandName",
   "brandname": "brandName",
   "brand_name": "brandName",
@@ -229,6 +232,43 @@ export async function registerRoutes(
     }
   });
   
+  app.get("/api/template/download", (req, res) => {
+    const format = (req.query.format as string) || "pdf";
+    
+    if (format === "pdf") {
+      const pdfPath = path.resolve("attached_assets/sample_Invoice_Templates_1770376466401.pdf");
+      if (!fs.existsSync(pdfPath)) {
+        return res.status(404).json({ message: "Template PDF not found" });
+      }
+      res.setHeader("Content-Disposition", "attachment; filename=Invoice_Template_Sample.pdf");
+      res.setHeader("Content-Type", "application/pdf");
+      fs.createReadStream(pdfPath).pipe(res);
+      return;
+    }
+
+    const sampleData = [
+      { "Sl.No.": 1, "Brand Number": "5029", "Brand Name": "KINGFISHER ULTRA LAGER BEER", "Product Type": "Beer", "Pack Type": "G", "Pack Qty / Size (ml)": "12 / 650 ml", "Qty Cases Delivered": 22, "Qty Bottles Delivered": 0, "Rate Per Case": "2201.00", "Unit Rate Per Bottle": "183.42", "Total Amount": "48422.00", "Breakage Btl Qty": 0, "Remarks": "" },
+      { "Sl.No.": 2, "Brand Number": "0261", "Brand Name": "TI COURIER NAPOLEON FINEST PURE GRAPE FRENCH BRANDY", "Product Type": "IML", "Pack Type": "G", "Pack Qty / Size (ml)": "12 / 750 ml", "Qty Cases Delivered": 1, "Qty Bottles Delivered": 0, "Rate Per Case": "7501.00", "Unit Rate Per Bottle": "625.08", "Total Amount": "7501.00", "Breakage Btl Qty": 0, "Remarks": "" },
+      { "Sl.No.": 3, "Brand Number": "0605", "Brand Name": "TI MANSION HOUSE XO BRANDY", "Product Type": "IML", "Pack Type": "G", "Pack Qty / Size (ml)": "48 / 180 ml", "Qty Cases Delivered": 36, "Qty Bottles Delivered": 0, "Rate Per Case": "5604.00", "Unit Rate Per Bottle": "116.75", "Total Amount": "201744.00", "Breakage Btl Qty": 0, "Remarks": "" },
+      { "Sl.No.": 4, "Brand Number": "0605", "Brand Name": "TI MANSION HOUSE XO BRANDY", "Product Type": "IML", "Pack Type": "P", "Pack Qty / Size (ml)": "4 / 2000 ml", "Qty Cases Delivered": 1, "Qty Bottles Delivered": 0, "Rate Per Case": "5501.00", "Unit Rate Per Bottle": "1375.25", "Total Amount": "5501.00", "Breakage Btl Qty": 0, "Remarks": "" },
+      { "Sl.No.": 5, "Brand Number": "0110", "Brand Name": "OFFICER'S CHOICE RESERVE WHISKY", "Product Type": "IML", "Pack Type": "G", "Pack Qty / Size (ml)": "48 / 180 ml", "Qty Cases Delivered": 29, "Qty Bottles Delivered": 47, "Rate Per Case": "5204.00", "Unit Rate Per Bottle": "108.42", "Total Amount": "156011.58", "Breakage Btl Qty": 0, "Remarks": "" },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    ws["!cols"] = [
+      { wch: 6 }, { wch: 14 }, { wch: 45 }, { wch: 14 }, { wch: 10 },
+      { wch: 20 }, { wch: 18 }, { wch: 20 }, { wch: 14 }, { wch: 20 },
+      { wch: 14 }, { wch: 16 }, { wch: 15 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws, "Invoice Template");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+
+    res.setHeader("Content-Disposition", "attachment; filename=Invoice_Template.xlsx");
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.send(buf);
+  });
+
   // Upload
   app.post(api.upload.create.path, upload.single('file'), async (req, res) => {
     if (!req.file) {

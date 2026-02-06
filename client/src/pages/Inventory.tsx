@@ -204,12 +204,27 @@ export default function Inventory() {
             </div>
             <h3 className="text-lg font-display font-bold mb-1">Templates</h3>
             <p className="text-white/80 text-xs leading-relaxed">
-              Download the official template to ensure your data is formatted correctly before uploading.
+              Download a sample invoice template for reference, or get the Excel format to fill in your data.
             </p>
           </div>
-          <button className="mt-4 w-full py-2 bg-white text-primary font-bold rounded-xl hover:bg-white/90 active:scale-95 transition-all shadow-xl text-xs">
-            Download Template
-          </button>
+          <div className="flex flex-col gap-2 mt-4">
+            <a
+              href="/api/template/download?format=pdf"
+              download="Invoice_Template_Sample.pdf"
+              data-testid="button-download-template-pdf"
+              className="w-full py-2 bg-white text-primary font-bold rounded-xl hover:bg-white/90 active:scale-95 transition-all shadow-xl text-xs block text-center"
+            >
+              Sample Invoice (PDF)
+            </a>
+            <a
+              href="/api/template/download?format=xlsx"
+              download="Invoice_Template.xlsx"
+              data-testid="button-download-template-xlsx"
+              className="w-full py-2 bg-white/20 text-white font-bold rounded-xl hover:bg-white/30 active:scale-95 transition-all text-xs block text-center border border-white/30"
+            >
+              Excel Template (.xlsx)
+            </a>
+          </div>
         </div>
       </section>
 
