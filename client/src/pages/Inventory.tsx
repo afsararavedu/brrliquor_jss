@@ -74,7 +74,7 @@ export default function Inventory() {
     uploadFile(formData, {
       onSuccess: (data: any) => {
         toast({
-          title: "PDF Parsed",
+          title: "File Parsed",
           description: `${data.ordersCount} items extracted. Review them in the table below and click 'Save Orders' to confirm.`,
           className: "bg-blue-50 text-blue-800 border-blue-200"
         });
@@ -166,14 +166,14 @@ export default function Inventory() {
             </div>
             <h3 className="text-base font-semibold text-foreground mb-1">Upload Invoice</h3>
             <p className="text-xs text-muted-foreground text-center mb-3 max-w-sm">
-              Drag and drop your PDF file here, or click to browse. Supported formats: .pdf
+              Upload your file here, or click to browse. Supported formats: .csv, .xls, .xlsx
             </p>
             
             <div className="flex items-center gap-3 w-full max-w-md">
               <input 
                 ref={fileInputRef}
                 type="file" 
-                accept=".pdf"
+                accept=".csv,.xls,.xlsx"
                 onChange={handleFileChange}
                 className="hidden" 
                 id="file-upload"

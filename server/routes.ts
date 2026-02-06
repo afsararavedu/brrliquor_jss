@@ -5,98 +5,150 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import multer from "multer";
+import * as XLSX from "xlsx";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-function extractTextFromPdfBuffer(buffer: Buffer): string {
-  const content = buffer.toString("binary");
-  const textChunks: string[] = [];
+const EMPTY_ORDER = {
+  brandNumber: "",
+  brandName: "",
+  productType: "",
+  packType: "",
+  packSize: "",
+  qtyCasesDelivered: 0,
+  qtyBottlesDelivered: 0,
+  ratePerCase: "0",
+  unitRatePerBottle: "0",
+  totalAmount: "0",
+  breakageBottleQty: 0,
+  remarks: ""
+};
 
-  const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
-  let match;
-  while ((match = streamRegex.exec(content)) !== null) {
-    const streamData = match[1];
-    const textMatches = streamData.match(/\(([^)]*)\)/g);
-    if (textMatches) {
-      for (const tm of textMatches) {
-        const cleaned = tm.slice(1, -1)
-          .replace(/\\n/g, "\n")
-          .replace(/\\r/g, "")
-          .replace(/\\\\/g, "\\")
-          .replace(/\\([()\\])/g, "$1");
-        if (cleaned.trim()) {
-          textChunks.push(cleaned);
-        }
-      }
+const COLUMN_MAP: Record<string, keyof typeof EMPTY_ORDER> = {
+  "brand number": "brandNumber",
+  "brandnumber": "brandNumber",
+  "brand_number": "brandNumber",
+  "brand no": "brandNumber",
+  "brand name": "brandName",
+  "brandname": "brandName",
+  "brand_name": "brandName",
+  "product type": "productType",
+  "producttype": "productType",
+  "product_type": "productType",
+  "type": "productType",
+  "pack type": "packType",
+  "packtype": "packType",
+  "pack_type": "packType",
+  "pack size": "packSize",
+  "packsize": "packSize",
+  "pack_size": "packSize",
+  "pack qty / size (ml)": "packSize",
+  "pack qty": "packSize",
+  "qty cases delivered": "qtyCasesDelivered",
+  "qty cases": "qtyCasesDelivered",
+  "cases delivered": "qtyCasesDelivered",
+  "cases": "qtyCasesDelivered",
+  "qty_cases_delivered": "qtyCasesDelivered",
+  "qty bottles delivered": "qtyBottlesDelivered",
+  "qty bottles": "qtyBottlesDelivered",
+  "bottles delivered": "qtyBottlesDelivered",
+  "bottles": "qtyBottlesDelivered",
+  "qty_bottles_delivered": "qtyBottlesDelivered",
+  "rate per case": "ratePerCase",
+  "rate/case": "ratePerCase",
+  "rate_per_case": "ratePerCase",
+  "unit rate per bottle": "unitRatePerBottle",
+  "unit rate": "unitRatePerBottle",
+  "rate/bottle": "unitRatePerBottle",
+  "unit_rate_per_bottle": "unitRatePerBottle",
+  "total amount": "totalAmount",
+  "totalamount": "totalAmount",
+  "total_amount": "totalAmount",
+  "amount": "totalAmount",
+  "total": "totalAmount",
+  "breakage bottle qty": "breakageBottleQty",
+  "breakage": "breakageBottleQty",
+  "breakage_bottle_qty": "breakageBottleQty",
+  "breakage btl qty": "breakageBottleQty",
+  "remarks": "remarks",
+  "remark": "remarks",
+};
+
+function mapHeaderToField(header: string): keyof typeof EMPTY_ORDER | null {
+  const normalized = header.trim().toLowerCase();
+  return COLUMN_MAP[normalized] || null;
+}
+
+function rowToOrder(row: Record<string, any>, headerMap: Record<string, keyof typeof EMPTY_ORDER>): typeof EMPTY_ORDER {
+  const order = { ...EMPTY_ORDER };
+  for (const [col, field] of Object.entries(headerMap)) {
+    const val = row[col];
+    if (val === undefined || val === null || val === "") continue;
+    if (field === "qtyCasesDelivered" || field === "qtyBottlesDelivered" || field === "breakageBottleQty") {
+      (order as any)[field] = parseInt(String(val)) || 0;
+    } else if (field === "ratePerCase" || field === "unitRatePerBottle" || field === "totalAmount") {
+      (order as any)[field] = String(val);
+    } else {
+      (order as any)[field] = String(val);
     }
-    const tjMatches = streamData.match(/\[(.*?)\]\s*TJ/g);
-    if (tjMatches) {
-      for (const tj of tjMatches) {
-        const innerTexts = tj.match(/\(([^)]*)\)/g);
-        if (innerTexts) {
-          const combined = innerTexts.map(t => t.slice(1, -1)).join("");
-          if (combined.trim()) {
-            textChunks.push(combined);
-          }
-        }
-      }
+  }
+  return order;
+}
+
+function parseSpreadsheet(buffer: Buffer, filename: string) {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  const jsonRows: Record<string, any>[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+  if (jsonRows.length === 0) {
+    throw new Error("The file appears to be empty or has no data rows.");
+  }
+
+  const headers = Object.keys(jsonRows[0]);
+  const headerMap: Record<string, keyof typeof EMPTY_ORDER> = {};
+  for (const h of headers) {
+    const field = mapHeaderToField(h);
+    if (field) {
+      headerMap[h] = field;
     }
   }
 
-  return textChunks.join("\n");
-}
-
-// Helper to parse PDF text into rows
-async function parsePdfOrders(buffer: Buffer) {
-  try {
-    const text = extractTextFromPdfBuffer(buffer);
-    console.log("Extracted PDF text:", text.substring(0, 500));
-    const lines = text.split('\n');
-    const orders: any[] = [];
-
-    for (const line of lines) {
-      const parts = line.trim().split(/\s+/);
-      if (parts.length >= 5) {
-        if (/^\d+$/.test(parts[0])) {
-          orders.push({
-            brandNumber: parts[0],
-            brandName: parts.slice(1, Math.max(2, parts.length - 7)).join(" "),
-            productType: "Beer", 
-            packType: "G",
-            packSize: "12 / 650 ml",
-            qtyCasesDelivered: parseInt(parts[parts.length - 5]) || 0,
-            qtyBottlesDelivered: parseInt(parts[parts.length - 4]) || 0,
-            ratePerCase: parts[parts.length - 3] || "0",
-            unitRatePerBottle: parts[parts.length - 2] || "0",
-            totalAmount: parts[parts.length - 1] || "0",
-            breakageBottleQty: 0,
-            remarks: ""
-          });
-        }
+  if (Object.keys(headerMap).length === 0) {
+    const orders: (typeof EMPTY_ORDER)[] = [];
+    for (const row of jsonRows) {
+      const vals = Object.values(row).map(v => String(v).trim()).filter(Boolean);
+      if (vals.length >= 2) {
+        orders.push({
+          ...EMPTY_ORDER,
+          brandNumber: vals[0] || "",
+          brandName: vals[1] || "",
+          productType: vals[2] || "",
+          packType: vals[3] || "",
+          packSize: vals[4] || "",
+          qtyCasesDelivered: parseInt(vals[5]) || 0,
+          qtyBottlesDelivered: parseInt(vals[6]) || 0,
+          ratePerCase: vals[7] || "0",
+          unitRatePerBottle: vals[8] || "0",
+          totalAmount: vals[9] || "0",
+          breakageBottleQty: parseInt(vals[10]) || 0,
+          remarks: vals[11] || ""
+        });
       }
     }
-
-    if (orders.length === 0 && text.trim().length > 0) {
-      orders.push({
-        brandNumber: "",
-        brandName: "Imported from PDF",
-        productType: "",
-        packType: "",
-        packSize: "",
-        qtyCasesDelivered: 0,
-        qtyBottlesDelivered: 0,
-        ratePerCase: "0",
-        unitRatePerBottle: "0",
-        totalAmount: "0",
-        breakageBottleQty: 0,
-        remarks: text.substring(0, 200)
-      });
-    }
-
     return orders;
-  } catch (err: any) {
-    console.error("PDF Parse Error:", err);
-    throw new Error("Could not parse PDF content: " + err.message);
+  }
+
+  return jsonRows.map(row => rowToOrder(row, headerMap));
+}
+
+function parseUploadedFile(buffer: Buffer, filename: string) {
+  const ext = filename.toLowerCase().split(".").pop() || "";
+
+  if (ext === "csv" || ext === "xls" || ext === "xlsx") {
+    return parseSpreadsheet(buffer, filename);
+  } else {
+    throw new Error(`Unsupported file type: .${ext}. Please upload .csv, .xls, or .xlsx files.`);
   }
 }
 
@@ -183,20 +235,22 @@ export async function registerRoutes(
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    if (!req.file.originalname.toLowerCase().endsWith('.pdf')) {
-      return res.status(400).json({ message: "Only PDF files are allowed" });
+    const allowedExts = [".csv", ".xls", ".xlsx"];
+    const ext = "." + (req.file.originalname.toLowerCase().split(".").pop() || "");
+    if (!allowedExts.includes(ext)) {
+      return res.status(400).json({ message: "Please upload a .csv, .xls, or .xlsx file." });
     }
 
     try {
-      const parsedOrders = await parsePdfOrders(req.file.buffer);
+      const parsedOrders = parseUploadedFile(req.file.buffer, req.file.originalname);
       res.json({ 
-        message: `Successfully parsed ${parsedOrders.length} orders from PDF. Please review and confirm before saving.`, 
+        message: `Successfully parsed ${parsedOrders.length} orders from file. Please review and confirm before saving.`, 
         filename: req.file.originalname,
         orders: parsedOrders,
         ordersCount: parsedOrders.length
       });
     } catch (err: any) {
-      res.status(500).json({ message: "Failed to parse PDF: " + err.message });
+      res.status(500).json({ message: "Failed to parse file: " + err.message });
     }
   });
 
