@@ -5,38 +5,58 @@ import { storage } from "./storage";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import multer from "multer";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Disable worker for Node.js environment
-pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+function extractTextFromPdfBuffer(buffer: Buffer): string {
+  const content = buffer.toString("binary");
+  const textChunks: string[] = [];
+
+  const streamRegex = /stream\r?\n([\s\S]*?)\r?\nendstream/g;
+  let match;
+  while ((match = streamRegex.exec(content)) !== null) {
+    const streamData = match[1];
+    const textMatches = streamData.match(/\(([^)]*)\)/g);
+    if (textMatches) {
+      for (const tm of textMatches) {
+        const cleaned = tm.slice(1, -1)
+          .replace(/\\n/g, "\n")
+          .replace(/\\r/g, "")
+          .replace(/\\\\/g, "\\")
+          .replace(/\\([()\\])/g, "$1");
+        if (cleaned.trim()) {
+          textChunks.push(cleaned);
+        }
+      }
+    }
+    const tjMatches = streamData.match(/\[(.*?)\]\s*TJ/g);
+    if (tjMatches) {
+      for (const tj of tjMatches) {
+        const innerTexts = tj.match(/\(([^)]*)\)/g);
+        if (innerTexts) {
+          const combined = innerTexts.map(t => t.slice(1, -1)).join("");
+          if (combined.trim()) {
+            textChunks.push(combined);
+          }
+        }
+      }
+    }
+  }
+
+  return textChunks.join("\n");
+}
 
 // Helper to parse PDF text into rows
 async function parsePdfOrders(buffer: Buffer) {
   try {
-    const uint8Array = new Uint8Array(buffer);
-    const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
-    const pdfDoc = await loadingTask.promise;
-    
-    let fullText = "";
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      const page = await pdfDoc.getPage(i);
-      const textContent = await page.getTextContent();
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(" ");
-      fullText += pageText + "\n";
-    }
-    
-    const lines = fullText.split('\n');
+    const text = extractTextFromPdfBuffer(buffer);
+    console.log("Extracted PDF text:", text.substring(0, 500));
+    const lines = text.split('\n');
     const orders: any[] = [];
 
-    // Simple heuristic: look for lines that look like product rows
     for (const line of lines) {
       const parts = line.trim().split(/\s+/);
       if (parts.length >= 5) {
-        // If first part is a number (brand number)
         if (/^\d+$/.test(parts[0])) {
           orders.push({
             brandNumber: parts[0],
@@ -55,6 +75,24 @@ async function parsePdfOrders(buffer: Buffer) {
         }
       }
     }
+
+    if (orders.length === 0 && text.trim().length > 0) {
+      orders.push({
+        brandNumber: "",
+        brandName: "Imported from PDF",
+        productType: "",
+        packType: "",
+        packSize: "",
+        qtyCasesDelivered: 0,
+        qtyBottlesDelivered: 0,
+        ratePerCase: "0",
+        unitRatePerBottle: "0",
+        totalAmount: "0",
+        breakageBottleQty: 0,
+        remarks: text.substring(0, 200)
+      });
+    }
+
     return orders;
   } catch (err: any) {
     console.error("PDF Parse Error:", err);
