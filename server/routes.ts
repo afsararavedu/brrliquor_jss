@@ -198,6 +198,10 @@ export async function registerRoutes(
     try {
       const input = api.orders.bulkCreate.input.parse(req.body);
       const result = await storage.bulkCreateOrders(input);
+
+      const syncResult = await storage.syncOrdersToStock();
+      console.log(`Stock sync: ${syncResult.updatedStockCount} stock items updated from ${syncResult.syncedOrderIds.length} orders`);
+
       res.status(201).json(result);
     } catch (err) {
       if (err instanceof z.ZodError) {

@@ -6,7 +6,7 @@ import {
   type StockDetail, type InsertStockDetail,
   type User, type InsertUser
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
@@ -31,6 +31,7 @@ export interface IStorage {
   // Stock
   getStockDetails(): Promise<StockDetail[]>;
   bulkUpdateStockDetails(stock: InsertStockDetail[]): Promise<StockDetail[]>;
+  syncOrdersToStock(): Promise<{ syncedOrderIds: number[]; updatedStockCount: number }>;
 
   sessionStore: session.Store;
 }
@@ -126,6 +127,75 @@ export class DatabaseStorage implements IStorage {
       results.push(updated);
     }
     return results;
+  }
+
+  async syncOrdersToStock(): Promise<{ syncedOrderIds: number[]; updatedStockCount: number }> {
+    const unsyncedOrders = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.dataUpdated, "NO"));
+
+    if (unsyncedOrders.length === 0) {
+      return { syncedOrderIds: [], updatedStockCount: 0 };
+    }
+
+    const brandAggregation: Record<string, { casesDelivered: number; bottlesDelivered: number; breakage: number }> = {};
+    for (const order of unsyncedOrders) {
+      const bn = order.brandNumber;
+      if (!brandAggregation[bn]) {
+        brandAggregation[bn] = { casesDelivered: 0, bottlesDelivered: 0, breakage: 0 };
+      }
+      brandAggregation[bn].casesDelivered += order.qtyCasesDelivered ?? 0;
+      brandAggregation[bn].bottlesDelivered += order.qtyBottlesDelivered ?? 0;
+      brandAggregation[bn].breakage += order.breakageBottleQty ?? 0;
+    }
+
+    let updatedStockCount = 0;
+    const today = new Date().toISOString().split('T')[0];
+    const syncedBrands = new Set<string>();
+
+    for (const [brandNumber, agg] of Object.entries(brandAggregation)) {
+      const [existingStock] = await db
+        .select()
+        .from(stockDetails)
+        .where(eq(stockDetails.brandNumber, brandNumber));
+
+      if (existingStock) {
+        const newCases = (existingStock.stockInCases ?? 0) + agg.casesDelivered;
+        const newBottles = (existingStock.stockInBottles ?? 0) + agg.bottlesDelivered;
+        const qtyPerCase = existingStock.quantityPerCase ?? 1;
+        const newTotalBottles = (newCases * qtyPerCase) + newBottles;
+        const mrpNum = parseFloat(existingStock.mrp) || 0;
+        const newTotalValue = (newTotalBottles * mrpNum).toFixed(2);
+        const newBreakage = (existingStock.breakage ?? 0) + agg.breakage;
+
+        await db.update(stockDetails)
+          .set({
+            stockInCases: newCases,
+            stockInBottles: newBottles,
+            totalStockBottles: newTotalBottles,
+            totalStockValue: newTotalValue,
+            breakage: newBreakage,
+            date: today,
+            updatedAt: new Date(),
+          })
+          .where(eq(stockDetails.brandNumber, brandNumber));
+
+        updatedStockCount++;
+        syncedBrands.add(brandNumber);
+      }
+    }
+
+    const syncedIds = unsyncedOrders
+      .filter(o => syncedBrands.has(o.brandNumber))
+      .map(o => o.id);
+    for (const orderId of syncedIds) {
+      await db.update(orders)
+        .set({ dataUpdated: "YES" })
+        .where(eq(orders.id, orderId));
+    }
+
+    return { syncedOrderIds: syncedIds, updatedStockCount };
   }
 }
 

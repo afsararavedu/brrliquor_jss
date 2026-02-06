@@ -34,10 +34,9 @@ export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
   brandNumber: text("brand_number").notNull(),
   brandName: text("brand_name").notNull(),
-  productType: text("product_type").notNull(), // Dropdown
-  packType: text("pack_type").notNull(), // Dropdown
-  packSize: text("pack_size").notNull(), // Dropdown "Pack Qty / Size (ml)"
-  // Editable & Calculation fields
+  productType: text("product_type").notNull(),
+  packType: text("pack_type").notNull(),
+  packSize: text("pack_size").notNull(),
   qtyCasesDelivered: integer("qty_cases_delivered").default(0),
   qtyBottlesDelivered: integer("qty_bottles_delivered").default(0),
   ratePerCase: numeric("rate_per_case").default('0'),
@@ -45,6 +44,7 @@ export const orders = pgTable("orders", {
   totalAmount: numeric("total_amount").default('0'),
   breakageBottleQty: integer("breakage_bottle_qty").default(0),
   remarks: text("remarks"),
+  dataUpdated: text("data_updated").default("NO").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -75,7 +75,8 @@ export const insertDailySaleSchema = createInsertSchema(dailySales).omit({
 
 export const insertOrderSchema = createInsertSchema(orders).omit({ 
   id: true, 
-  createdAt: true 
+  createdAt: true,
+  dataUpdated: true
 });
 
 export const insertStockDetailSchema = createInsertSchema(stockDetails).omit({
