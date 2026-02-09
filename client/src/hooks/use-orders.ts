@@ -2,11 +2,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
 import { type InsertOrder } from "@shared/schema";
 
-export function useOrders() {
+export function useOrders(filters?: { invoiceDate?: string; icdcNumber?: string }) {
+  const params = new URLSearchParams();
+  if (filters?.invoiceDate) params.set("invoice_date", filters.invoiceDate);
+  if (filters?.icdcNumber) params.set("icdc_number", filters.icdcNumber);
+  const queryString = params.toString();
+  const url = queryString ? `${api.orders.list.path}?${queryString}` : api.orders.list.path;
+
   return useQuery({
-    queryKey: [api.orders.list.path],
+    queryKey: [api.orders.list.path, filters?.invoiceDate || "", filters?.icdcNumber || ""],
     queryFn: async () => {
-      const res = await fetch(api.orders.list.path);
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to fetch orders");
       return api.orders.list.responses[200].parse(await res.json());
     },

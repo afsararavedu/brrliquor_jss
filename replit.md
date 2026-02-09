@@ -12,6 +12,12 @@ SalesPro (PourPoint Inc.) is a full-stack sales management dashboard application
 - Sync aggregates multiple orders per brand before applying to stock
 - Matching uses 4-way condition: brand_number, brand_name, size (from pack_size), quantity_per_case (from pack_size)
 
+### Invoice Tracking
+- Orders table has `invoice_date` and `icdc_number` columns for tracking invoices
+- PDF parser extracts Invoice Date and ICDC Number from the PDF header and applies them to all parsed rows
+- Saved Orders section on Inventory page supports filtering by invoice_date and icdc_number
+- API endpoint: GET /api/orders?invoice_date=X&icdc_number=Y
+
 ### Stock-to-DailySales Sync
 - After stock is updated (from orders or direct stock edit), daily_sales rows are auto-updated
 - Matches on: brand_number, brand_name, size, quantity_per_case

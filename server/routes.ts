@@ -23,7 +23,9 @@ const EMPTY_ORDER = {
   unitRatePerBottle: "0",
   totalAmount: "0",
   breakageBottleQty: 0,
-  remarks: ""
+  remarks: "",
+  invoiceDate: "",
+  icdcNumber: ""
 };
 
 const COLUMN_MAP: Record<string, keyof typeof EMPTY_ORDER> = {
@@ -75,6 +77,13 @@ const COLUMN_MAP: Record<string, keyof typeof EMPTY_ORDER> = {
   "breakage btl qty": "breakageBottleQty",
   "remarks": "remarks",
   "remark": "remarks",
+  "invoice date": "invoiceDate",
+  "invoice_date": "invoiceDate",
+  "invoicedate": "invoiceDate",
+  "icdc number": "icdcNumber",
+  "icdc_number": "icdcNumber",
+  "icdcnumber": "icdcNumber",
+  "icdc no": "icdcNumber",
 };
 
 function mapHeaderToField(header: string): keyof typeof EMPTY_ORDER | null {
@@ -154,6 +163,26 @@ async function parsePdfInvoice(buffer: Buffer): Promise<(typeof EMPTY_ORDER)[]> 
   const allText: string = result.pages.map((p: any) => p.text).join("\n");
   const lines = allText.split("\n").map((l: string) => l.replace(/\t/g, " ").trim()).filter(Boolean);
 
+  let invoiceDate = "";
+  let icdcNumber = "";
+  for (const line of lines) {
+    const dateMatch = line.match(/Invoice\s*Date\s*:\s*(.+?)(?:\s{2,}|$)/i);
+    if (dateMatch && !invoiceDate) {
+      invoiceDate = dateMatch[1].trim();
+    }
+    const icdcMatch = line.match(/ICDC\s*Number\s*[:\s]\s*(ICDC\S+)/i);
+    if (icdcMatch && !icdcNumber) {
+      icdcNumber = icdcMatch[1].trim();
+    }
+    if (!icdcNumber) {
+      const standaloneIcdc = line.match(/^(ICDC\d{10,})$/);
+      if (standaloneIcdc) {
+        icdcNumber = standaloneIcdc[1].trim();
+      }
+    }
+    if (invoiceDate && icdcNumber) break;
+  }
+
   const orders: (typeof EMPTY_ORDER)[] = [];
   let i = 0;
 
@@ -223,6 +252,8 @@ async function parsePdfInvoice(buffer: Buffer): Promise<(typeof EMPTY_ORDER)[]> 
       ratePerCase,
       unitRatePerBottle: unitRate,
       totalAmount: totalAmt,
+      invoiceDate,
+      icdcNumber,
     });
   }
 
@@ -280,8 +311,17 @@ export async function registerRoutes(
 
   // Orders
   app.get(api.orders.list.path, async (req, res) => {
-    const orders = await storage.getOrders();
-    res.json(orders);
+    const invoiceDate = req.query.invoice_date as string | undefined;
+    const icdcNumber = req.query.icdc_number as string | undefined;
+    const allOrders = await storage.getOrders();
+    let filtered = allOrders;
+    if (invoiceDate) {
+      filtered = filtered.filter(o => o.invoiceDate === invoiceDate);
+    }
+    if (icdcNumber) {
+      filtered = filtered.filter(o => o.icdcNumber === icdcNumber);
+    }
+    res.json(filtered);
   });
 
   app.post(api.orders.bulkCreate.path, async (req, res) => {
