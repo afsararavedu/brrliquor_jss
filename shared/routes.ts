@@ -73,7 +73,7 @@ export const api = {
       path: '/api/upload',
       // Multipart form data, not strictly validated by zod in body
       responses: {
-        200: z.object({ message: z.string(), filename: z.string() }),
+        200: z.object({ message: z.string(), filename: z.string(), orders: z.array(z.any()).optional(), ordersCount: z.number().optional() }),
       },
     }
   }

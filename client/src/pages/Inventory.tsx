@@ -8,11 +8,22 @@ import {
   Trash2, 
   Save, 
   Loader2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
 import { type InsertOrder } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { PaginationCustom } from "@/components/ui/pagination-custom";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 // Dropdown Options
 const PRODUCT_TYPES = ["Beer", "IML", "Wine"];
@@ -49,6 +60,11 @@ export default function Inventory() {
   // File Upload State
   const { mutate: uploadFile, isPending: isUploading } = useUploadFile();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewOrders, setPreviewOrders] = useState<InsertOrder[]>([]);
+  const [previewFilename, setPreviewFilename] = useState("");
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewPage, setPreviewPage] = useState(1);
+  const previewPageSize = 10;
 
   // Orders Table State
   const { mutate: saveOrders, isPending: isSaving } = useBulkCreateOrders();
@@ -73,20 +89,15 @@ export default function Inventory() {
     
     uploadFile(formData, {
       onSuccess: (data: any) => {
-        toast({
-          title: "File Parsed",
-          description: `${data.ordersCount} items extracted. Review them in the table below and click 'Save Orders' to confirm.`,
-          className: "bg-blue-50 text-blue-800 border-blue-200"
-        });
-        
         if (data.orders && data.orders.length > 0) {
-          // Map to match InsertOrder structure exactly if needed
           const newOrders = data.orders.map((o: any) => ({
             ...EMPTY_ROW,
             ...o
           }));
-          setRows(newOrders);
-          setCurrentPage(1);
+          setPreviewOrders(newOrders);
+          setPreviewFilename(data.filename || selectedFile?.name || "Uploaded File");
+          setPreviewPage(1);
+          setShowPreview(true);
         }
         
         setSelectedFile(null);
@@ -134,6 +145,27 @@ export default function Inventory() {
     }
   };
 
+  const handleConfirmUpload = () => {
+    if (previewOrders.length === 0) return;
+    saveOrders(previewOrders, {
+      onSuccess: () => {
+        toast({ title: "Success", description: `${previewOrders.length} orders saved successfully!`, className: "bg-green-50 text-green-800" });
+        setShowPreview(false);
+        setPreviewOrders([]);
+      },
+      onError: () => toast({ title: "Error", description: "Failed to save orders.", variant: "destructive" })
+    });
+  };
+
+  const handleRejectUpload = () => {
+    setShowPreview(false);
+    setPreviewOrders([]);
+    toast({ title: "Cancelled", description: "Upload cancelled. You can upload a new file.", className: "bg-muted text-foreground" });
+  };
+
+  const previewTotalPages = Math.ceil(previewOrders.length / previewPageSize);
+  const paginatedPreview = previewOrders.slice((previewPage - 1) * previewPageSize, previewPage * previewPageSize);
+
   const handleSubmitOrders = () => {
     // Basic validation
     if (rows.some(r => !r.brandName || !r.brandNumber)) {
@@ -166,7 +198,7 @@ export default function Inventory() {
             </div>
             <h3 className="text-base font-semibold text-foreground mb-1">Upload Invoice</h3>
             <p className="text-xs text-muted-foreground text-center mb-3 max-w-sm">
-              Upload your file here, or click to browse. Supported formats: .csv, .xls, .xlsx
+              Upload your file here, or click to browse. Supported formats: .csv, .xls, .xlsx, .pdf
             </p>
             
             <div className="flex items-center gap-3 w-full max-w-md">
@@ -422,6 +454,106 @@ export default function Inventory() {
           </div>
         </div>
       </section>
+
+      <Dialog open={showPreview} onOpenChange={(open) => { if (!open) handleRejectUpload(); }}>
+        <DialogContent className="max-w-[95vw] w-full max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle data-testid="text-preview-title">Review Uploaded Orders</DialogTitle>
+            <DialogDescription>
+              <span className="font-medium">{previewFilename}</span> — {previewOrders.length} order(s) extracted. Review the data below and confirm to save.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-auto border border-border rounded-lg">
+            <table className="w-full min-w-[1200px]">
+              <thead>
+                <tr className="bg-muted/50 border-b border-border sticky top-0 z-10">
+                  <th className="table-header w-12">#</th>
+                  <th className="table-header w-28">Brand No</th>
+                  <th className="table-header w-48">Brand Name</th>
+                  <th className="table-header w-20">Type</th>
+                  <th className="table-header w-16">Pack</th>
+                  <th className="table-header w-32">Size (ml)</th>
+                  <th className="table-header w-24 bg-blue-50/50 text-right">Cases</th>
+                  <th className="table-header w-24 bg-blue-50/50 text-right">Bottles</th>
+                  <th className="table-header w-28 text-right">Rate/Case</th>
+                  <th className="table-header w-28 text-right">Rate/Btl</th>
+                  <th className="table-header w-32 text-right font-bold text-primary bg-primary/5">Total</th>
+                  <th className="table-header w-24 text-right">Breakage</th>
+                  <th className="table-header w-36">Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedPreview.map((row, idx) => {
+                  const globalIdx = (previewPage - 1) * previewPageSize + idx;
+                  return (
+                    <tr key={globalIdx} className="hover:bg-muted/30 transition-colors" data-testid={`row-preview-order-${globalIdx}`}>
+                      <td className="table-cell text-muted-foreground text-center">{globalIdx + 1}</td>
+                      <td className="table-cell font-mono text-sm">{row.brandNumber}</td>
+                      <td className="table-cell text-sm">{row.brandName}</td>
+                      <td className="table-cell text-sm">{row.productType}</td>
+                      <td className="table-cell text-sm">{row.packType}</td>
+                      <td className="table-cell text-sm">{row.packSize}</td>
+                      <td className="table-cell text-right font-mono text-sm bg-blue-50/10">{row.qtyCasesDelivered}</td>
+                      <td className="table-cell text-right font-mono text-sm bg-blue-50/10">{row.qtyBottlesDelivered}</td>
+                      <td className="table-cell text-right font-mono text-sm">{row.ratePerCase}</td>
+                      <td className="table-cell text-right font-mono text-sm">{row.unitRatePerBottle}</td>
+                      <td className="table-cell text-right font-bold text-primary font-mono bg-primary/5">{row.totalAmount}</td>
+                      <td className="table-cell text-right font-mono text-sm">{row.breakageBottleQty}</td>
+                      <td className="table-cell text-sm text-muted-foreground">{row.remarks || "-"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {previewTotalPages > 1 && (
+            <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground">
+              <span>Showing {(previewPage - 1) * previewPageSize + 1}-{Math.min(previewPage * previewPageSize, previewOrders.length)} of {previewOrders.length}</span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={previewPage <= 1}
+                  onClick={() => setPreviewPage(p => p - 1)}
+                  data-testid="button-preview-prev"
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={previewPage >= previewTotalPages}
+                  onClick={() => setPreviewPage(p => p + 1)}
+                  data-testid="button-preview-next"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-3 sm:gap-3 pt-2">
+            <Button
+              variant="outline"
+              onClick={handleRejectUpload}
+              data-testid="button-reject-upload"
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Reject
+            </Button>
+            <Button
+              onClick={handleConfirmUpload}
+              disabled={isSaving}
+              data-testid="button-confirm-upload"
+            >
+              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-2" />}
+              Confirm & Save ({previewOrders.length} orders)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
