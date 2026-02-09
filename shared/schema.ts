@@ -43,6 +43,7 @@ export const orders = pgTable("orders", {
   unitRatePerBottle: numeric("unit_rate_per_bottle").default('0'),
   totalAmount: numeric("total_amount").default('0'),
   breakageBottleQty: integer("breakage_bottle_qty").default(0),
+  totalBottles: integer("total_bottles").default(0),
   remarks: text("remarks"),
   dataUpdated: text("data_updated").default("NO").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -76,7 +77,8 @@ export const insertDailySaleSchema = createInsertSchema(dailySales).omit({
 export const insertOrderSchema = createInsertSchema(orders).omit({ 
   id: true, 
   createdAt: true,
-  dataUpdated: true
+  dataUpdated: true,
+  totalBottles: true
 });
 
 export const insertStockDetailSchema = createInsertSchema(stockDetails).omit({

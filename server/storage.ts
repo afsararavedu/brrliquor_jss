@@ -102,7 +102,13 @@ export class DatabaseStorage implements IStorage {
 
   async bulkCreateOrders(ordersData: InsertOrder[]): Promise<Order[]> {
     if (ordersData.length === 0) return [];
-    return await db.insert(orders).values(ordersData).returning();
+    const withTotalBottles = ordersData.map(order => {
+      const packParts = order.packSize.split("/").map((s: string) => s.trim());
+      const qtyPerCase = packParts.length > 0 ? parseInt(packParts[0], 10) : 0;
+      const totalBottles = (isNaN(qtyPerCase) ? 0 : qtyPerCase) * (order.qtyCasesDelivered ?? 0) + (order.qtyBottlesDelivered ?? 0);
+      return { ...order, totalBottles };
+    });
+    return await db.insert(orders).values(withTotalBottles).returning();
   }
 
   // Stock
