@@ -13,7 +13,8 @@ import {
   XCircle,
   Search,
   Filter,
-  X
+  X,
+  Download
 } from "lucide-react";
 import { type InsertOrder, type Order } from "@shared/schema";
 import { cn } from "@/lib/utils";
@@ -98,6 +99,31 @@ export default function Inventory() {
     setFilterIcdcNumber("");
     setAppliedFilters({});
     setSavedPage(1);
+  };
+
+  const handleExportOrders = () => {
+    if (!savedOrders || savedOrders.length === 0) return;
+    const headers = [
+      "Invoice Date", "ICDC Number", "Brand No", "Brand Name", "Type", "Pack",
+      "Pack Size", "Cases Delivered", "Bottles Delivered", "Rate/Case",
+      "Rate/Bottle", "Total Amount", "Breakage", "Total Bottles"
+    ];
+    const csvRows = savedOrders.map((o: Order) => [
+      o.invoiceDate || "", o.icdcNumber || "", o.brandNumber, o.brandName,
+      o.productType, o.packType, o.packSize, o.qtyCasesDelivered,
+      o.qtyBottlesDelivered, o.ratePerCase, o.unitRatePerBottle,
+      o.totalAmount, o.breakageBottleQty, o.totalBottles
+    ].map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","));
+    const csv = [headers.join(","), ...csvRows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const hasFilters = appliedFilters.invoiceDate || appliedFilters.icdcNumber;
+    a.href = url;
+    a.download = hasFilters ? `orders_filtered_${new Date().toISOString().slice(0, 10)}.csv` : `orders_all_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Exported", description: `${savedOrders.length} orders exported to CSV.`, className: "bg-green-50 text-green-800" });
   };
 
   const totalPages = Math.ceil(rows.length / pageSize);
@@ -521,6 +547,9 @@ export default function Inventory() {
                 <X className="w-4 h-4 mr-2" /> Clear
               </Button>
             )}
+            <Button variant="outline" onClick={handleExportOrders} disabled={!savedOrders || savedOrders.length === 0} data-testid="button-export-orders">
+              <Download className="w-4 h-4 mr-2" /> Export CSV
+            </Button>
           </div>
           {(appliedFilters.invoiceDate || appliedFilters.icdcNumber) && (
             <div className="flex flex-wrap gap-2 mt-3 text-xs">

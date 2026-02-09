@@ -6,7 +6,7 @@ import {
   type StockDetail, type InsertStockDetail,
   type User, type InsertUser
 } from "@shared/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
@@ -97,7 +97,7 @@ export class DatabaseStorage implements IStorage {
 
   // Orders
   async getOrders(): Promise<Order[]> {
-    return await db.select().from(orders);
+    return await db.select().from(orders).orderBy(desc(orders.id));
   }
 
   async bulkCreateOrders(ordersData: InsertOrder[]): Promise<Order[]> {
