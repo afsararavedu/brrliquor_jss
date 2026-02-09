@@ -32,6 +32,7 @@ export interface IStorage {
   getStockDetails(): Promise<StockDetail[]>;
   bulkUpdateStockDetails(stock: InsertStockDetail[]): Promise<StockDetail[]>;
   syncOrdersToStock(): Promise<{ syncedOrderIds: number[]; updatedStockCount: number }>;
+  syncStockToDailySales(): Promise<{ updatedSalesCount: number }>;
 
   sessionStore: session.Store;
 }
@@ -229,6 +230,43 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { syncedOrderIds, updatedStockCount };
+  }
+
+  async syncStockToDailySales(): Promise<{ updatedSalesCount: number }> {
+    const allStock = await db.select().from(stockDetails);
+    const allSales = await db.select().from(dailySales);
+
+    if (allStock.length === 0 || allSales.length === 0) {
+      return { updatedSalesCount: 0 };
+    }
+
+    let updatedSalesCount = 0;
+
+    for (const sale of allSales) {
+      const matchedStock = allStock.find(s => {
+        if (s.brandNumber !== sale.brandNumber) return false;
+        if (s.brandName.trim().toLowerCase() !== sale.brandName.trim().toLowerCase()) return false;
+        const stockSize = s.size.trim().toLowerCase().replace(/\s+/g, "");
+        const saleSize = sale.size.trim().toLowerCase().replace(/\s+/g, "");
+        if (stockSize !== saleSize && !stockSize.includes(saleSize) && !saleSize.includes(stockSize)) return false;
+        if (s.quantityPerCase !== sale.quantityPerCase) return false;
+        return true;
+      });
+
+      if (matchedStock) {
+        await db.update(dailySales)
+          .set({
+            openingBalanceBottles: matchedStock.totalStockBottles ?? 0,
+            newStockCases: matchedStock.stockInCases ?? 0,
+            newStockBottles: matchedStock.stockInBottles ?? 0,
+          })
+          .where(eq(dailySales.id, sale.id));
+
+        updatedSalesCount++;
+      }
+    }
+
+    return { updatedSalesCount };
   }
 }
 

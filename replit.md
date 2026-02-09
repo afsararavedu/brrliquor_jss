@@ -10,6 +10,12 @@ SalesPro (PourPoint Inc.) is a full-stack sales management dashboard application
 - After syncing, orders are marked `data_updated = 'YES'`
 - Stock fields updated: `stock_in_cases`, `stock_in_bottles`, `total_stock_bottles`, `total_stock_value`, `breakage`
 - Sync aggregates multiple orders per brand before applying to stock
+- Matching uses 4-way condition: brand_number, brand_name, size (from pack_size), quantity_per_case (from pack_size)
+
+### Stock-to-DailySales Sync
+- After stock is updated (from orders or direct stock edit), daily_sales rows are auto-updated
+- Matches on: brand_number, brand_name, size, quantity_per_case
+- Fields updated: `opening_balance_bottles` (from total_stock_bottles), `new_stock_cases` (from stock_in_cases), `new_stock_bottles` (from stock_in_bottles)
 
 ## User Preferences
 

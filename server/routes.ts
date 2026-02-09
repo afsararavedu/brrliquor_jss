@@ -202,6 +202,9 @@ export async function registerRoutes(
       const syncResult = await storage.syncOrdersToStock();
       console.log(`Stock sync: ${syncResult.updatedStockCount} stock items updated from ${syncResult.syncedOrderIds.length} orders`);
 
+      const salesSync = await storage.syncStockToDailySales();
+      console.log(`Sales sync: ${salesSync.updatedSalesCount} daily sales rows updated from stock`);
+
       res.status(201).json(result);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -224,6 +227,10 @@ export async function registerRoutes(
     try {
       const input = api.stock.bulkUpdate.input.parse(req.body);
       const result = await storage.bulkUpdateStockDetails(input);
+
+      const salesSync = await storage.syncStockToDailySales();
+      console.log(`Sales sync (from stock update): ${salesSync.updatedSalesCount} daily sales rows updated`);
+
       res.status(201).json(result);
     } catch (err) {
       if (err instanceof z.ZodError) {
