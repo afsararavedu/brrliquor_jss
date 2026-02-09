@@ -145,13 +145,103 @@ function parseSpreadsheet(buffer: Buffer, filename: string) {
   return jsonRows.map(row => rowToOrder(row, headerMap));
 }
 
-function parseUploadedFile(buffer: Buffer, filename: string) {
+async function parsePdfInvoice(buffer: Buffer): Promise<(typeof EMPTY_ORDER)[]> {
+  const { PDFParse } = await import("pdf-parse");
+  const uint8 = new Uint8Array(buffer);
+  const parser = new PDFParse(uint8);
+  await (parser as any).load();
+  const result = await (parser as any).getText();
+  const allText: string = result.pages.map((p: any) => p.text).join("\n");
+  const lines = allText.split("\n").map((l: string) => l.replace(/\t/g, " ").trim()).filter(Boolean);
+
+  const orders: (typeof EMPTY_ORDER)[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const slNoMatch = line.match(/^(\d+)\s+(\d{3,5})\s+(.+)/);
+    if (!slNoMatch) { i++; continue; }
+
+    const brandNumber = slNoMatch[2];
+    let rest = slNoMatch[3];
+
+    i++;
+    while (i < lines.length && !lines[i].match(/^\d+\s+\d{3,5}\s+/) && !lines[i].match(/^(Duplicate|Original|Total|Grand|Sub|Breakage|Particulars|Sl\.No)/i)) {
+      rest += " " + lines[i];
+      i++;
+    }
+
+    const sizeMatch = rest.match(/(\d+\s*\/\s*\d+\s*ml)/i);
+    if (!sizeMatch) continue;
+
+    const packSize = sizeMatch[1].replace(/\s+/g, " ").trim();
+    const beforeSize = rest.substring(0, rest.indexOf(sizeMatch[0])).trim();
+    const afterSize = rest.substring(rest.indexOf(sizeMatch[0]) + sizeMatch[0].length).trim();
+
+    const typeMatch = beforeSize.match(/^(.+?)\s+(Beer|IML|IMFL|Wine|RTD)\s+([A-Z])\s*$/i);
+    let brandName = "", productType = "", packType = "";
+    if (typeMatch) {
+      brandName = typeMatch[1].trim();
+      productType = typeMatch[2].trim();
+      packType = typeMatch[3].trim();
+    } else {
+      const altMatch = beforeSize.match(/^(.+?)\s+([A-Z])\s*$/);
+      if (altMatch) {
+        brandName = altMatch[1].trim();
+        packType = altMatch[2].trim();
+      } else {
+        brandName = beforeSize;
+      }
+    }
+
+    const cleanNum = (s: string | undefined) => (s || "0").replace(/,/g, "").trim();
+    const nums = afterSize.match(/[\d,]+\.?\d*/g) || [];
+
+    let qtyCases = 0, qtyBottles = 0, ratePerCase = "0", unitRate = "0", totalAmt = "0";
+    if (nums.length >= 4) {
+      qtyCases = parseInt(cleanNum(nums[0])) || 0;
+      qtyBottles = parseInt(cleanNum(nums[1])) || 0;
+      ratePerCase = cleanNum(nums[2]);
+      unitRate = cleanNum(nums[nums.length - 2]);
+      totalAmt = cleanNum(nums[nums.length - 1]);
+    } else if (nums.length === 3) {
+      qtyCases = parseInt(cleanNum(nums[0])) || 0;
+      qtyBottles = 0;
+      ratePerCase = cleanNum(nums[1]);
+      totalAmt = cleanNum(nums[2]);
+    }
+
+    orders.push({
+      ...EMPTY_ORDER,
+      brandNumber,
+      brandName: brandName.replace(/\s+/g, " ").trim(),
+      productType,
+      packType,
+      packSize,
+      qtyCasesDelivered: qtyCases,
+      qtyBottlesDelivered: qtyBottles,
+      ratePerCase,
+      unitRatePerBottle: unitRate,
+      totalAmount: totalAmt,
+    });
+  }
+
+  if (orders.length === 0) {
+    throw new Error("Could not extract any order data from the PDF. Please ensure it follows the invoice format.");
+  }
+
+  return orders;
+}
+
+async function parseUploadedFile(buffer: Buffer, filename: string) {
   const ext = filename.toLowerCase().split(".").pop() || "";
 
   if (ext === "csv" || ext === "xls" || ext === "xlsx") {
     return parseSpreadsheet(buffer, filename);
+  } else if (ext === "pdf") {
+    return parsePdfInvoice(buffer);
   } else {
-    throw new Error(`Unsupported file type: .${ext}. Please upload .csv, .xls, or .xlsx files.`);
+    throw new Error(`Unsupported file type: .${ext}. Please upload .csv, .xls, .xlsx, or .pdf files.`);
   }
 }
 
@@ -286,14 +376,14 @@ export async function registerRoutes(
       return res.status(400).json({ message: "No file uploaded" });
     }
 
-    const allowedExts = [".csv", ".xls", ".xlsx"];
+    const allowedExts = [".csv", ".xls", ".xlsx", ".pdf"];
     const ext = "." + (req.file.originalname.toLowerCase().split(".").pop() || "");
     if (!allowedExts.includes(ext)) {
-      return res.status(400).json({ message: "Please upload a .csv, .xls, or .xlsx file." });
+      return res.status(400).json({ message: "Please upload a .csv, .xls, .xlsx, or .pdf file." });
     }
 
     try {
-      const parsedOrders = parseUploadedFile(req.file.buffer, req.file.originalname);
+      const parsedOrders = await parseUploadedFile(req.file.buffer, req.file.originalname);
       res.json({ 
         message: `Successfully parsed ${parsedOrders.length} orders from file. Please review and confirm before saving.`, 
         filename: req.file.originalname,

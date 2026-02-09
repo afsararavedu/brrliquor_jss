@@ -173,7 +173,7 @@ export default function Inventory() {
               <input 
                 ref={fileInputRef}
                 type="file" 
-                accept=".csv,.xls,.xlsx"
+                accept=".csv,.xls,.xlsx,.pdf"
                 onChange={handleFileChange}
                 className="hidden" 
                 id="file-upload"
