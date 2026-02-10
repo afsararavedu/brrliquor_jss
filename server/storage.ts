@@ -146,35 +146,44 @@ export class DatabaseStorage implements IStorage {
       return { syncedOrderIds: [], updatedStockCount: 0 };
     }
 
+    const allStock = await db.select().from(stockDetails);
+
     type AggKey = string;
     type AggValue = {
-      brandNumber: string;
-      brandName: string;
-      packSize: string;
+      stockId: number;
       casesDelivered: number;
       bottlesDelivered: number;
-      breakage: number;
+      totalBottles: number;
       orderIds: number[];
     };
 
     const aggregation = new Map<AggKey, AggValue>();
 
     for (const order of unsyncedOrders) {
-      const key = `${order.brandNumber}||${order.brandName}||${order.packSize}`;
+      const matchedStock = allStock.find(s => {
+        if (s.brandNumber !== order.brandNumber) return false;
+        if (s.brandName.trim().toLowerCase() !== order.brandName.trim().toLowerCase()) return false;
+        const stockSize = s.size.trim().toLowerCase().replace(/\s+/g, "");
+        const orderPackSize = order.packSize.trim().toLowerCase().replace(/\s+/g, "");
+        if (!orderPackSize.includes(stockSize)) return false;
+        return true;
+      });
+
+      if (!matchedStock) continue;
+
+      const key = String(matchedStock.id);
       const existing = aggregation.get(key);
       if (existing) {
         existing.casesDelivered += order.qtyCasesDelivered ?? 0;
         existing.bottlesDelivered += order.qtyBottlesDelivered ?? 0;
-        existing.breakage += order.breakageBottleQty ?? 0;
+        existing.totalBottles += order.totalBottles ?? 0;
         existing.orderIds.push(order.id);
       } else {
         aggregation.set(key, {
-          brandNumber: order.brandNumber,
-          brandName: order.brandName,
-          packSize: order.packSize,
+          stockId: matchedStock.id,
           casesDelivered: order.qtyCasesDelivered ?? 0,
           bottlesDelivered: order.qtyBottlesDelivered ?? 0,
-          breakage: order.breakageBottleQty ?? 0,
+          totalBottles: order.totalBottles ?? 0,
           orderIds: [order.id],
         });
       }
@@ -184,49 +193,28 @@ export class DatabaseStorage implements IStorage {
     const today = new Date().toISOString().split('T')[0];
     const syncedOrderIds: number[] = [];
 
-    const allStock = await db.select().from(stockDetails);
+    for (const agg of Array.from(aggregation.values())) {
+      const matchedStock = allStock.find(s => s.id === agg.stockId)!;
 
-    const aggEntries = Array.from(aggregation.values());
-    for (const agg of aggEntries) {
-      const packParts = agg.packSize.split("/").map((s: string) => s.trim());
-      const qtyFromPack = packParts.length > 0 ? parseInt(packParts[0], 10) : NaN;
-      const sizeFromPack = packParts.length > 1 ? packParts[1] : "";
+      const newCases = (matchedStock.stockInCases ?? 0) + agg.casesDelivered;
+      const newBottles = (matchedStock.stockInBottles ?? 0) + agg.bottlesDelivered;
+      const newTotalBottles = (matchedStock.totalStockBottles ?? 0) + agg.totalBottles;
+      const mrpNum = parseFloat(matchedStock.mrp) || 0;
+      const newTotalValue = (newTotalBottles * mrpNum).toFixed(2);
 
-      const matchedStock = allStock.find(s => {
-        if (s.brandNumber !== agg.brandNumber) return false;
-        const brandMatch = s.brandName.trim().toLowerCase() === agg.brandName.trim().toLowerCase();
-        if (!brandMatch) return false;
-        const sizeMatch = sizeFromPack && s.size.trim().toLowerCase().includes(sizeFromPack.trim().toLowerCase());
-        if (!sizeMatch) return false;
-        const qtyMatch = !isNaN(qtyFromPack) && s.quantityPerCase === qtyFromPack;
-        if (!qtyMatch) return false;
-        return true;
-      });
+      await db.update(stockDetails)
+        .set({
+          stockInCases: newCases,
+          stockInBottles: newBottles,
+          totalStockBottles: newTotalBottles,
+          totalStockValue: newTotalValue,
+          date: today,
+          updatedAt: new Date(),
+        })
+        .where(eq(stockDetails.id, matchedStock.id));
 
-      if (matchedStock) {
-        const newCases = (matchedStock.stockInCases ?? 0) + agg.casesDelivered;
-        const newBottles = (matchedStock.stockInBottles ?? 0) + agg.bottlesDelivered;
-        const qtyPerCase = matchedStock.quantityPerCase ?? 1;
-        const newTotalBottles = (newCases * qtyPerCase) + newBottles;
-        const mrpNum = parseFloat(matchedStock.mrp) || 0;
-        const newTotalValue = (newTotalBottles * mrpNum).toFixed(2);
-        const newBreakage = (matchedStock.breakage ?? 0) + agg.breakage;
-
-        await db.update(stockDetails)
-          .set({
-            stockInCases: newCases,
-            stockInBottles: newBottles,
-            totalStockBottles: newTotalBottles,
-            totalStockValue: newTotalValue,
-            breakage: newBreakage,
-            date: today,
-            updatedAt: new Date(),
-          })
-          .where(eq(stockDetails.id, matchedStock.id));
-
-        updatedStockCount++;
-        syncedOrderIds.push(...agg.orderIds);
-      }
+      updatedStockCount++;
+      syncedOrderIds.push(...agg.orderIds);
     }
 
     for (const orderId of syncedOrderIds) {

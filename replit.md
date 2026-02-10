@@ -5,12 +5,13 @@
 SalesPro (PourPoint Inc.) is a full-stack sales management dashboard application for tracking daily sales, inventory, and orders. It features a React frontend with a modern UI built on shadcn/ui components, and an Express backend with PostgreSQL database storage using Drizzle ORM. The application provides modules for daily sales tracking, order management, file uploads, and various placeholder modules for future expansion (Stock, Reports, Credits, Calendar).
 
 ### Order-to-Stock Sync
-- When orders are created (bulk), the system automatically syncs to `stock_details` table by matching `brand_number`
+- Triggered manually via "Get Latest Stock" button on Stock page (POST /api/stock/sync)
+- Also triggered automatically when orders are created (bulk)
 - Only orders with `data_updated = 'NO'` are processed (prevents double-counting)
 - After syncing, orders are marked `data_updated = 'YES'`
-- Stock fields updated: `stock_in_cases`, `stock_in_bottles`, `total_stock_bottles`, `total_stock_value`, `breakage`
-- Sync aggregates multiple orders per brand before applying to stock
-- Matching uses 4-way condition: brand_number, brand_name, size (from pack_size), quantity_per_case (from pack_size)
+- Stock fields updated: `stock_in_cases`, `stock_in_bottles`, `total_stock_bottles`, `total_stock_value`
+- Sync aggregates multiple orders per stock item before applying
+- Matching uses 3-way condition: brand_number, brand_name, and orders.pack_size contains stock_details.size
 
 ### Invoice Tracking
 - Orders table has `invoice_date` and `icdc_number` columns for tracking invoices

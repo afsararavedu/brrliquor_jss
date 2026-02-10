@@ -12,6 +12,7 @@ import {
   Save,
   Loader2,
   Download,
+  RefreshCw,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PaginationCustom } from "@/components/ui/pagination-custom";
@@ -33,19 +34,25 @@ export default function Stock() {
     },
   });
 
-  const { mutate: updateStock, isPending: isSaving } = useMutation({
-    mutationFn: async (data: InsertStockDetail[]) => {
-      const res = await fetch(api.stock.bulkUpdate.path, {
+  const { mutate: syncStock, isPending: isSyncing } = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(api.stock.sync.path, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to update stock");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: "Failed to sync stock" }));
+        throw new Error(err.message);
+      }
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: { syncedOrderIds: number[]; updatedStockCount: number }) => {
       queryClient.invalidateQueries({ queryKey: [api.stock.list.path] });
-      toast({ title: "Stock Updated", description: "Stock data has been successfully saved." });
+      if (data.syncedOrderIds.length === 0) {
+        toast({ title: "Stock Up to Date", description: "No new orders to sync. All orders have already been processed." });
+      } else {
+        toast({ title: "Stock Updated", description: `Synced ${data.syncedOrderIds.length} orders into ${data.updatedStockCount} stock items.` });
+      }
     },
     onError: (err: any) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -126,11 +133,12 @@ export default function Stock() {
             />
           </div>
           <button
-            onClick={() => updateStock(localStock as any)}
-            disabled={isSaving}
+            onClick={() => syncStock()}
+            disabled={isSyncing}
+            data-testid="button-get-latest-stock"
             className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg hover:bg-primary/90 transition-all disabled:opacity-50"
           >
-            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
             Get Latest Stock
           </button>
         </div>

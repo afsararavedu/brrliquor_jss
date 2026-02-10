@@ -373,6 +373,20 @@ export async function registerRoutes(
     }
   });
   
+  app.post(api.stock.sync.path, async (req, res) => {
+    try {
+      const syncResult = await storage.syncOrdersToStock();
+      console.log(`Stock sync: ${syncResult.updatedStockCount} stock items updated from ${syncResult.syncedOrderIds.length} orders`);
+
+      const salesSync = await storage.syncStockToDailySales();
+      console.log(`Sales sync: ${salesSync.updatedSalesCount} daily sales rows updated from stock`);
+
+      res.json(syncResult);
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to sync orders to stock: " + err.message });
+    }
+  });
+
   app.get("/api/template/download", (req, res) => {
     const format = (req.query.format as string) || "pdf";
     

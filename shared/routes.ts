@@ -66,6 +66,16 @@ export const api = {
         400: errorSchemas.validation,
       },
     },
+    sync: {
+      method: 'POST' as const,
+      path: '/api/stock/sync',
+      responses: {
+        200: z.object({
+          syncedOrderIds: z.array(z.number()),
+          updatedStockCount: z.number(),
+        }),
+      },
+    },
   },
   upload: {
     create: {
