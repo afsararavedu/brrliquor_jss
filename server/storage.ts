@@ -161,8 +161,12 @@ export class DatabaseStorage implements IStorage {
 
     for (const order of unsyncedOrders) {
       const matchedStock = allStock.find(s => {
-        if (s.brandNumber !== order.brandNumber) return false;
-        if (s.brandName.trim().toLowerCase() !== order.brandName.trim().toLowerCase()) return false;
+        const stockBrand = s.brandNumber.replace(/^0+/, '') || '0';
+        const orderBrand = order.brandNumber.replace(/^0+/, '') || '0';
+        if (stockBrand !== orderBrand) return false;
+        const stockName = s.brandName.trim().toLowerCase().replace(/\s+/g, "");
+        const orderName = order.brandName.trim().toLowerCase().replace(/\s+/g, "");
+        if (stockName !== orderName) return false;
         const stockSize = s.size.trim().toLowerCase().replace(/\s+/g, "");
         const orderPackSize = order.packSize.trim().toLowerCase().replace(/\s+/g, "");
         if (!orderPackSize.includes(stockSize)) return false;
