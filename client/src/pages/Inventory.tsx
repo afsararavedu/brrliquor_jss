@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { type InsertOrder, type Order } from "@shared/schema";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 import { PaginationCustom } from "@/components/ui/pagination-custom";
 import {
   Dialog,
@@ -61,6 +62,7 @@ const EMPTY_ROW: InsertOrder = {
 
 export default function Inventory() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // File Upload State
@@ -314,7 +316,8 @@ export default function Inventory() {
         </div>
       </section>
 
-      {/* Manual Entry Section */}
+      {/* Manual Entry Section - Admin Only */}
+      {user?.role === 'admin' && (
       <section>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold font-display text-foreground">Manual Order Entry</h2>
@@ -508,8 +511,10 @@ export default function Inventory() {
           </div>
         </div>
       </section>
+      )}
 
       {/* Saved Orders with Filtering */}
+      
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold font-display text-foreground">Saved Orders</h2>

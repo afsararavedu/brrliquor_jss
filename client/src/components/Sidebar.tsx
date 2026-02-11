@@ -16,7 +16,7 @@ import { useAuth } from "@/hooks/use-auth";
 const NAV_ITEMS = [
   { label: "Home", href: "/", icon: LayoutDashboard, role: "admin" },
   { label: "Sales", href: "/sales", icon: ShoppingCart },
-  { label: "Inventory", href: "/inventory", icon: FileText, role: "admin" },
+  { label: "Inventory", href: "/inventory", icon: FileText },
   { label: "Stock", href: "/stock", icon: Package, role: "admin" },
   { label: "Reports", href: "/reports", icon: BarChart3, role: "admin" },
   { label: "Credits", href: "/credits", icon: CreditCard, role: "admin" },

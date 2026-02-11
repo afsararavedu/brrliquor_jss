@@ -50,7 +50,7 @@ function Router() {
                 <ProtectedRoute component={Stock} path="/stock" role="admin" />
               </Route>
               <Route path="/inventory">
-                <ProtectedRoute component={Inventory} path="/inventory" role="admin" />
+                <ProtectedRoute component={Inventory} path="/inventory" />
               </Route>
               <Route path="/reports">
                 <ProtectedRoute component={Reports} path="/reports" role="admin" />
