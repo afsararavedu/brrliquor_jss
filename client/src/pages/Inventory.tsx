@@ -86,7 +86,7 @@ export default function Inventory() {
   const [appliedFilters, setAppliedFilters] = useState<{ invoiceDate?: string; icdcNumber?: string }>({});
   const { data: savedOrders, isLoading: isLoadingOrders } = useOrders(appliedFilters);
   const [savedPage, setSavedPage] = useState(1);
-  const savedPageSize = 10;
+  const [savedPageSize, setSavedPageSize] = useState(10);
 
   const handleApplyFilters = () => {
     setAppliedFilters({
@@ -628,7 +628,7 @@ export default function Inventory() {
                 totalPages={Math.ceil(savedOrders.length / savedPageSize)}
                 pageSize={savedPageSize}
                 onPageChange={setSavedPage}
-                onPageSizeChange={() => {}}
+                onPageSizeChange={(size) => { setSavedPageSize(size); setSavedPage(1); }}
                 totalItems={savedOrders.length}
               />
             </>

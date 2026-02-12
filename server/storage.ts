@@ -119,38 +119,12 @@ export class DatabaseStorage implements IStorage {
   async bulkUpdateStockDetails(stockData: InsertStockDetail[]): Promise<StockDetail[]> {
     const results: StockDetail[] = [];
     const today = new Date().toISOString().split('T')[0];
-    let allStock = await db.select().from(stockDetails);
-
-    const normalizeBrand = (b: string) => b.replace(/^0+/, '') || '0';
-    const normalizeName = (n: string) => n.trim().toLowerCase().replace(/\s+/g, "");
-    const normalizeSize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, "");
 
     for (const item of stockData) {
-      const existingStock = allStock.find(s => {
-        return normalizeBrand(s.brandNumber) === normalizeBrand(item.brandNumber) &&
-               normalizeName(s.brandName) === normalizeName(item.brandName) &&
-               normalizeSize(s.size) === normalizeSize(item.size);
-      });
-
-      if (existingStock) {
-        const [updated] = await db.update(stockDetails)
-          .set({
-            ...item,
-            date: today,
-            updatedAt: new Date(),
-          })
-          .where(eq(stockDetails.id, existingStock.id))
-          .returning();
-        results.push(updated);
-        const idx = allStock.findIndex(s => s.id === existingStock.id);
-        if (idx >= 0) allStock[idx] = updated;
-      } else {
-        const [created] = await db.insert(stockDetails)
-          .values({ ...item, date: today })
-          .returning();
-        results.push(created);
-        allStock.push(created);
-      }
+      const [created] = await db.insert(stockDetails)
+        .values({ ...item, date: today })
+        .returning();
+      results.push(created);
     }
     return results;
   }
