@@ -449,8 +449,21 @@ export async function registerRoutes(
     }
   });
 
-  // Seed Data
-  await seedDatabase();
+  // Seed Data - retry on DB cold start
+  const maxRetries = 3;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await seedDatabase();
+      break;
+    } catch (err: any) {
+      console.error(`Seed attempt ${attempt}/${maxRetries} failed: ${err.message}`);
+      if (attempt === maxRetries) {
+        console.error("Seeding failed after retries, continuing without seed data");
+      } else {
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    }
+  }
 
   return httpServer;
 }
