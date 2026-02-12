@@ -54,7 +54,7 @@ export const orders = pgTable("orders", {
 // Table for the "Stock" page (matching image_1768795267421.png)
 export const stockDetails = pgTable("stock_details", {
   id: serial("id").primaryKey(),
-  brandNumber: text("brand_number").notNull().unique(),
+  brandNumber: text("brand_number").notNull(),
   brandName: text("brand_name").notNull(),
   size: text("size").notNull(),
   quantityPerCase: integer("quantity_per_case").notNull(),
