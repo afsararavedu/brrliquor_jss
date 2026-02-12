@@ -119,19 +119,38 @@ export class DatabaseStorage implements IStorage {
   async bulkUpdateStockDetails(stockData: InsertStockDetail[]): Promise<StockDetail[]> {
     const results: StockDetail[] = [];
     const today = new Date().toISOString().split('T')[0];
+    let allStock = await db.select().from(stockDetails);
+
+    const normalizeBrand = (b: string) => b.replace(/^0+/, '') || '0';
+    const normalizeName = (n: string) => n.trim().toLowerCase().replace(/\s+/g, "");
+    const normalizeSize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, "");
+
     for (const item of stockData) {
-      const [updated] = await db.insert(stockDetails)
-        .values({ ...item, date: today })
-        .onConflictDoUpdate({
-          target: stockDetails.brandNumber,
-          set: {
+      const existingStock = allStock.find(s => {
+        return normalizeBrand(s.brandNumber) === normalizeBrand(item.brandNumber) &&
+               normalizeName(s.brandName) === normalizeName(item.brandName) &&
+               normalizeSize(s.size) === normalizeSize(item.size);
+      });
+
+      if (existingStock) {
+        const [updated] = await db.update(stockDetails)
+          .set({
             ...item,
             date: today,
             updatedAt: new Date(),
-          }
-        })
-        .returning();
-      results.push(updated);
+          })
+          .where(eq(stockDetails.id, existingStock.id))
+          .returning();
+        results.push(updated);
+        const idx = allStock.findIndex(s => s.id === existingStock.id);
+        if (idx >= 0) allStock[idx] = updated;
+      } else {
+        const [created] = await db.insert(stockDetails)
+          .values({ ...item, date: today })
+          .returning();
+        results.push(created);
+        allStock.push(created);
+      }
     }
     return results;
   }
@@ -148,43 +167,70 @@ export class DatabaseStorage implements IStorage {
 
     const allStock = await db.select().from(stockDetails);
 
-    type AggKey = string;
+    const normalizeBrand = (b: string) => b.replace(/^0+/, '') || '0';
+    const normalizeName = (n: string) => n.trim().toLowerCase().replace(/\s+/g, "");
+
+    const extractSizeFromPackSize = (packSize: string): string => {
+      const parts = packSize.split("/");
+      if (parts.length >= 2) return parts[1].trim();
+      return packSize.trim();
+    };
+
+    const extractQtyPerCaseFromPackSize = (packSize: string): number => {
+      const parts = packSize.split("/");
+      if (parts.length >= 1) {
+        const num = parseInt(parts[0].trim(), 10);
+        return isNaN(num) ? 0 : num;
+      }
+      return 0;
+    };
+
     type AggValue = {
-      stockId: number;
+      stockId: number | null;
+      brandNumber: string;
+      brandName: string;
+      size: string;
+      quantityPerCase: number;
+      mrpPerBottle: number;
       casesDelivered: number;
       bottlesDelivered: number;
       totalBottles: number;
       orderIds: number[];
     };
 
-    const aggregation = new Map<AggKey, AggValue>();
+    const updateAgg = new Map<string, AggValue>();
+    const createAgg = new Map<string, AggValue>();
 
     for (const order of unsyncedOrders) {
+      const orderBrandNorm = normalizeBrand(order.brandNumber);
+      const orderNameNorm = normalizeName(order.brandName);
+      const orderSize = extractSizeFromPackSize(order.packSize);
+      const orderSizeNorm = orderSize.toLowerCase().replace(/\s+/g, "");
+
       const matchedStock = allStock.find(s => {
-        const stockBrand = s.brandNumber.replace(/^0+/, '') || '0';
-        const orderBrand = order.brandNumber.replace(/^0+/, '') || '0';
-        if (stockBrand !== orderBrand) return false;
-        const stockName = s.brandName.trim().toLowerCase().replace(/\s+/g, "");
-        const orderName = order.brandName.trim().toLowerCase().replace(/\s+/g, "");
-        if (stockName !== orderName) return false;
-        const stockSize = s.size.trim().toLowerCase().replace(/\s+/g, "");
-        const orderPackSize = order.packSize.trim().toLowerCase().replace(/\s+/g, "");
-        if (!orderPackSize.includes(stockSize)) return false;
-        return true;
+        if (normalizeBrand(s.brandNumber) !== orderBrandNorm) return false;
+        if (normalizeName(s.brandName) !== orderNameNorm) return false;
+        const stockSizeNorm = s.size.trim().toLowerCase().replace(/\s+/g, "");
+        return stockSizeNorm === orderSizeNorm;
       });
 
-      if (!matchedStock) continue;
+      const compositeKey = `${orderBrandNorm}|${orderNameNorm}|${orderSizeNorm}`;
+      const aggMap = matchedStock ? updateAgg : createAgg;
 
-      const key = String(matchedStock.id);
-      const existing = aggregation.get(key);
+      const existing = aggMap.get(compositeKey);
       if (existing) {
         existing.casesDelivered += order.qtyCasesDelivered ?? 0;
         existing.bottlesDelivered += order.qtyBottlesDelivered ?? 0;
         existing.totalBottles += order.totalBottles ?? 0;
         existing.orderIds.push(order.id);
       } else {
-        aggregation.set(key, {
-          stockId: matchedStock.id,
+        aggMap.set(compositeKey, {
+          stockId: matchedStock ? matchedStock.id : null,
+          brandNumber: order.brandNumber,
+          brandName: order.brandName,
+          size: orderSize,
+          quantityPerCase: extractQtyPerCaseFromPackSize(order.packSize),
+          mrpPerBottle: parseFloat(order.unitRatePerBottle ?? '0'),
           casesDelivered: order.qtyCasesDelivered ?? 0,
           bottlesDelivered: order.qtyBottlesDelivered ?? 0,
           totalBottles: order.totalBottles ?? 0,
@@ -197,7 +243,7 @@ export class DatabaseStorage implements IStorage {
     const today = new Date().toISOString().split('T')[0];
     const syncedOrderIds: number[] = [];
 
-    for (const agg of Array.from(aggregation.values())) {
+    for (const agg of Array.from(updateAgg.values())) {
       const matchedStock = allStock.find(s => s.id === agg.stockId)!;
 
       const newCases = (matchedStock.stockInCases ?? 0) + agg.casesDelivered;
@@ -216,6 +262,28 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date(),
         })
         .where(eq(stockDetails.id, matchedStock.id));
+
+      updatedStockCount++;
+      syncedOrderIds.push(...agg.orderIds);
+    }
+
+    for (const agg of Array.from(createAgg.values())) {
+      const mrpEstimate = agg.mrpPerBottle > 0 ? agg.mrpPerBottle : 0;
+      const totalValue = (agg.totalBottles * mrpEstimate).toFixed(2);
+
+      await db.insert(stockDetails).values({
+        brandNumber: agg.brandNumber,
+        brandName: agg.brandName,
+        size: agg.size,
+        quantityPerCase: agg.quantityPerCase,
+        stockInCases: agg.casesDelivered,
+        stockInBottles: agg.bottlesDelivered,
+        totalStockBottles: agg.totalBottles,
+        mrp: String(mrpEstimate),
+        totalStockValue: totalValue,
+        breakage: 0,
+        date: today,
+      });
 
       updatedStockCount++;
       syncedOrderIds.push(...agg.orderIds);
