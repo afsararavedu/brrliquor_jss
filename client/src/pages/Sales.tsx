@@ -123,7 +123,7 @@ export default function Sales() {
           
           const saleValue = soldBottles * mrp;
           const totalClosingStock = (qtyPerCase * closingCs) + closingBtls;
-          const finalClosingBalance = totalClosingStock; // As per the prompt's request for these names
+          const finalClosingBalance = totalClosingStock * mrp;
 
           return {
             ...updatedItem,
@@ -131,7 +131,7 @@ export default function Sales() {
             saleValue: saleValue.toFixed(2),
             totalSaleValue: saleValue.toFixed(2),
             totalClosingStock,
-            finalClosingBalance,
+            finalClosingBalance: finalClosingBalance.toFixed(2),
           };
         }
         return item;
@@ -379,7 +379,7 @@ export default function Sales() {
                         {item.totalClosingStock}
                       </td>
                       <td className="table-cell text-center font-mono h-12">
-                        {item.finalClosingBalance}
+                        {parseFloat(item.finalClosingBalance as string || '0').toFixed(2)}
                       </td>
                     </tr>
                   );
