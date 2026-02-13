@@ -1,8 +1,8 @@
-# SalesPro Dashboard
+# BRR Liquor Portal
 
 ## Overview
 
-SalesPro (PourPoint Inc.) is a full-stack sales management dashboard application for tracking daily sales, inventory, and orders. It features a React frontend with a modern UI built on shadcn/ui components, and an Express backend with PostgreSQL database storage using Drizzle ORM. The application provides modules for daily sales tracking, order management, file uploads, and various placeholder modules for future expansion (Stock, Reports, Credits, Calendar).
+BRR Liquor Portal (BRR Liquor Software Pvt Ltd.) is a full-stack sales management dashboard application for tracking daily sales, inventory, and orders. It features a React frontend with a modern UI built on shadcn/ui components, and an Express backend with PostgreSQL database storage using Drizzle ORM. The application provides modules for daily sales tracking, order management, file uploads, and various placeholder modules for future expansion (Stock, Reports, Credits, Calendar).
 
 ### Order-to-Stock Sync
 - Triggered manually via "Get Latest Stock" button on Stock page (POST /api/stock/sync)
@@ -23,6 +23,14 @@ SalesPro (PourPoint Inc.) is a full-stack sales management dashboard application
 - After stock is updated (from orders or direct stock edit), daily_sales rows are auto-updated
 - Matches on: brand_number, brand_name, size, quantity_per_case
 - Fields updated: `opening_balance_bottles` (from total_stock_bottles), `new_stock_cases` (from stock_in_cases), `new_stock_bottles` (from stock_in_bottles)
+
+### DailySales-to-Stock Sync
+- Triggered automatically when sales are saved ("Save Sales" button)
+- Matches on: brand_number, brand_name, and daily_sales.size contains stock_details.size
+- Stock fields updated: `stock_in_cases` (from closing_balance_cases), `stock_in_bottles` (from closing_balance_bottles), `total_stock_bottles` (from total_closing_stock)
+
+### Sales Calculations
+- `Final Closing Balance` = `Total Closing Stock (Bottles)` x `MRP`
 
 ## User Preferences
 

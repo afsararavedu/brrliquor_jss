@@ -297,6 +297,10 @@ export async function registerRoutes(
     try {
       const input = api.sales.bulkUpdate.input.parse(req.body);
       const result = await storage.bulkUpdateDailySales(input);
+
+      const stockSync = await storage.syncDailySalesToStock();
+      console.log(`Stock sync from sales save: ${stockSync.updatedStockCount} stock rows updated`);
+
       res.status(201).json(result);
     } catch (err) {
        if (err instanceof z.ZodError) {
