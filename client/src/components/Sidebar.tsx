@@ -35,10 +35,10 @@ export function Sidebar() {
     <div className="hidden md:flex flex-col w-64 h-screen bg-card border-r border-border fixed left-0 top-0 z-50 shadow-xl shadow-black/5 select-none">
       <div className="p-6 flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-orange-600 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-primary/25">
-          S
+          B
         </div>
         <div>
-          <h1 className="font-display font-bold text-lg text-foreground leading-none">PourPoint Inc.</h1>
+          <h1 className="font-display font-bold text-lg text-foreground leading-none">BRR Liquor Portal</h1>
           <p className="text-xs text-muted-foreground font-medium mt-1">{user?.role === 'admin' ? 'Admin' : 'Employee'} Portal</p>
         </div>
       </div>

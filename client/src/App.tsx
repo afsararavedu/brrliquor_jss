@@ -63,6 +63,9 @@ function Router() {
             </Switch>
           </div>
         </main>
+        <footer className="border-t py-3 px-8 text-center text-sm text-muted-foreground" data-testid="footer-copyright">
+          <p>&copy; {new Date().getFullYear()} BRR Liquor Software Pvt Ltd. All rights reserved.</p>
+        </footer>
       </div>
     </div>
   );
