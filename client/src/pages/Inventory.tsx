@@ -316,6 +316,138 @@ export default function Inventory() {
         </div>
       </section>
 
+      {/* Saved Orders with Filtering */}
+      
+      <section>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold font-display text-foreground">Saved Orders</h2>
+        </div>
+
+        <div className="bg-card rounded-2xl border border-border shadow-sm p-4 mb-4">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-muted-foreground">Invoice Date</label>
+              <input
+                type="text"
+                placeholder="e.g. 30-Dec-2025"
+                className="input-field w-48"
+                value={filterInvoiceDate}
+                onChange={(e) => setFilterInvoiceDate(e.target.value)}
+                data-testid="input-filter-invoice-date"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-muted-foreground">ICDC Number</label>
+              <input
+                type="text"
+                placeholder="e.g. ICDC019301225012062"
+                className="input-field w-64"
+                value={filterIcdcNumber}
+                onChange={(e) => setFilterIcdcNumber(e.target.value)}
+                data-testid="input-filter-icdc-number"
+              />
+            </div>
+            <Button onClick={handleApplyFilters} data-testid="button-apply-filters">
+              <Search className="w-4 h-4 mr-2" /> Search
+            </Button>
+            {(appliedFilters.invoiceDate || appliedFilters.icdcNumber) && (
+              <Button variant="outline" onClick={handleClearFilters} data-testid="button-clear-filters">
+                <X className="w-4 h-4 mr-2" /> Clear
+              </Button>
+            )}
+            <Button variant="outline" onClick={handleExportOrders} disabled={!savedOrders || savedOrders.length === 0} data-testid="button-export-orders">
+              <Download className="w-4 h-4 mr-2" /> Export CSV
+            </Button>
+          </div>
+          {(appliedFilters.invoiceDate || appliedFilters.icdcNumber) && (
+            <div className="flex flex-wrap gap-2 mt-3 text-xs">
+              <span className="text-muted-foreground">Active filters:</span>
+              {appliedFilters.invoiceDate && (
+                <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md">Invoice Date: {appliedFilters.invoiceDate}</span>
+              )}
+              {appliedFilters.icdcNumber && (
+                <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md">ICDC: {appliedFilters.icdcNumber}</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+          {isLoadingOrders ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : savedOrders && savedOrders.length > 0 ? (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[1400px]">
+                  <thead>
+                    <tr className="bg-muted/50 border-b border-border">
+                      <th className="table-header w-12">#</th>
+                      <th className="table-header w-28">Invoice Date</th>
+                      <th className="table-header w-48">ICDC Number</th>
+                      <th className="table-header w-24">Brand No</th>
+                      <th className="table-header w-40">Brand Name</th>
+                      <th className="table-header w-20">Type</th>
+                      <th className="table-header w-16">Pack</th>
+                      <th className="table-header w-28">Size (ml)</th>
+                      <th className="table-header w-20 text-right bg-blue-50/50">Cases</th>
+                      <th className="table-header w-20 text-right bg-blue-50/50">Bottles</th>
+                      <th className="table-header w-24 text-right">Rate/Case</th>
+                      <th className="table-header w-24 text-right">Rate/Btl</th>
+                      <th className="table-header w-28 text-right font-bold text-primary bg-primary/5">Total</th>
+                      <th className="table-header w-20 text-right">Breakage</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {savedOrders
+                      .slice((savedPage - 1) * savedPageSize, savedPage * savedPageSize)
+                      .map((order: Order, idx: number) => {
+                        const globalIdx = (savedPage - 1) * savedPageSize + idx;
+                        return (
+                          <tr key={order.id} className="hover:bg-muted/30 transition-colors" data-testid={`row-saved-order-${globalIdx}`}>
+                            <td className="table-cell text-muted-foreground text-center">{globalIdx + 1}</td>
+                            <td className="table-cell text-sm">{order.invoiceDate || "-"}</td>
+                            <td className="table-cell text-xs font-mono">{order.icdcNumber || "-"}</td>
+                            <td className="table-cell font-mono text-sm">{order.brandNumber}</td>
+                            <td className="table-cell text-sm">{order.brandName}</td>
+                            <td className="table-cell text-sm">{order.productType}</td>
+                            <td className="table-cell text-sm">{order.packType}</td>
+                            <td className="table-cell text-sm">{order.packSize}</td>
+                            <td className="table-cell text-right font-mono text-sm bg-blue-50/10">{order.qtyCasesDelivered}</td>
+                            <td className="table-cell text-right font-mono text-sm bg-blue-50/10">{order.qtyBottlesDelivered}</td>
+                            <td className="table-cell text-right font-mono text-sm">{order.ratePerCase}</td>
+                            <td className="table-cell text-right font-mono text-sm">{order.unitRatePerBottle}</td>
+                            <td className="table-cell text-right font-bold text-primary font-mono bg-primary/5">{order.totalAmount}</td>
+                            <td className="table-cell text-right font-mono text-sm">{order.breakageBottleQty}</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+              <PaginationCustom
+                currentPage={savedPage}
+                totalPages={Math.ceil(savedOrders.length / savedPageSize)}
+                pageSize={savedPageSize}
+                onPageChange={setSavedPage}
+                onPageSizeChange={(size) => { setSavedPageSize(size); setSavedPage(1); }}
+                totalItems={savedOrders.length}
+              />
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Filter className="w-8 h-8 mb-2 opacity-40" />
+              <p className="text-sm">
+                {appliedFilters.invoiceDate || appliedFilters.icdcNumber
+                  ? "No orders found matching your filters."
+                  : "No saved orders yet. Upload an invoice or add orders manually above."}
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* Manual Entry Section - Admin Only */}
       {user?.role === 'admin' && (
       <section>
@@ -512,138 +644,6 @@ export default function Inventory() {
         </div>
       </section>
       )}
-
-      {/* Saved Orders with Filtering */}
-      
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold font-display text-foreground">Saved Orders</h2>
-        </div>
-
-        <div className="bg-card rounded-2xl border border-border shadow-sm p-4 mb-4">
-          <div className="flex flex-wrap items-end gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground">Invoice Date</label>
-              <input
-                type="text"
-                placeholder="e.g. 30-Dec-2025"
-                className="input-field w-48"
-                value={filterInvoiceDate}
-                onChange={(e) => setFilterInvoiceDate(e.target.value)}
-                data-testid="input-filter-invoice-date"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-muted-foreground">ICDC Number</label>
-              <input
-                type="text"
-                placeholder="e.g. ICDC019301225012062"
-                className="input-field w-64"
-                value={filterIcdcNumber}
-                onChange={(e) => setFilterIcdcNumber(e.target.value)}
-                data-testid="input-filter-icdc-number"
-              />
-            </div>
-            <Button onClick={handleApplyFilters} data-testid="button-apply-filters">
-              <Search className="w-4 h-4 mr-2" /> Search
-            </Button>
-            {(appliedFilters.invoiceDate || appliedFilters.icdcNumber) && (
-              <Button variant="outline" onClick={handleClearFilters} data-testid="button-clear-filters">
-                <X className="w-4 h-4 mr-2" /> Clear
-              </Button>
-            )}
-            <Button variant="outline" onClick={handleExportOrders} disabled={!savedOrders || savedOrders.length === 0} data-testid="button-export-orders">
-              <Download className="w-4 h-4 mr-2" /> Export CSV
-            </Button>
-          </div>
-          {(appliedFilters.invoiceDate || appliedFilters.icdcNumber) && (
-            <div className="flex flex-wrap gap-2 mt-3 text-xs">
-              <span className="text-muted-foreground">Active filters:</span>
-              {appliedFilters.invoiceDate && (
-                <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md">Invoice Date: {appliedFilters.invoiceDate}</span>
-              )}
-              {appliedFilters.icdcNumber && (
-                <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-md">ICDC: {appliedFilters.icdcNumber}</span>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-          {isLoadingOrders ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : savedOrders && savedOrders.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1400px]">
-                  <thead>
-                    <tr className="bg-muted/50 border-b border-border">
-                      <th className="table-header w-12">#</th>
-                      <th className="table-header w-28">Invoice Date</th>
-                      <th className="table-header w-48">ICDC Number</th>
-                      <th className="table-header w-24">Brand No</th>
-                      <th className="table-header w-40">Brand Name</th>
-                      <th className="table-header w-20">Type</th>
-                      <th className="table-header w-16">Pack</th>
-                      <th className="table-header w-28">Size (ml)</th>
-                      <th className="table-header w-20 text-right bg-blue-50/50">Cases</th>
-                      <th className="table-header w-20 text-right bg-blue-50/50">Bottles</th>
-                      <th className="table-header w-24 text-right">Rate/Case</th>
-                      <th className="table-header w-24 text-right">Rate/Btl</th>
-                      <th className="table-header w-28 text-right font-bold text-primary bg-primary/5">Total</th>
-                      <th className="table-header w-20 text-right">Breakage</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {savedOrders
-                      .slice((savedPage - 1) * savedPageSize, savedPage * savedPageSize)
-                      .map((order: Order, idx: number) => {
-                        const globalIdx = (savedPage - 1) * savedPageSize + idx;
-                        return (
-                          <tr key={order.id} className="hover:bg-muted/30 transition-colors" data-testid={`row-saved-order-${globalIdx}`}>
-                            <td className="table-cell text-muted-foreground text-center">{globalIdx + 1}</td>
-                            <td className="table-cell text-sm">{order.invoiceDate || "-"}</td>
-                            <td className="table-cell text-xs font-mono">{order.icdcNumber || "-"}</td>
-                            <td className="table-cell font-mono text-sm">{order.brandNumber}</td>
-                            <td className="table-cell text-sm">{order.brandName}</td>
-                            <td className="table-cell text-sm">{order.productType}</td>
-                            <td className="table-cell text-sm">{order.packType}</td>
-                            <td className="table-cell text-sm">{order.packSize}</td>
-                            <td className="table-cell text-right font-mono text-sm bg-blue-50/10">{order.qtyCasesDelivered}</td>
-                            <td className="table-cell text-right font-mono text-sm bg-blue-50/10">{order.qtyBottlesDelivered}</td>
-                            <td className="table-cell text-right font-mono text-sm">{order.ratePerCase}</td>
-                            <td className="table-cell text-right font-mono text-sm">{order.unitRatePerBottle}</td>
-                            <td className="table-cell text-right font-bold text-primary font-mono bg-primary/5">{order.totalAmount}</td>
-                            <td className="table-cell text-right font-mono text-sm">{order.breakageBottleQty}</td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              </div>
-              <PaginationCustom
-                currentPage={savedPage}
-                totalPages={Math.ceil(savedOrders.length / savedPageSize)}
-                pageSize={savedPageSize}
-                onPageChange={setSavedPage}
-                onPageSizeChange={(size) => { setSavedPageSize(size); setSavedPage(1); }}
-                totalItems={savedOrders.length}
-              />
-            </>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <Filter className="w-8 h-8 mb-2 opacity-40" />
-              <p className="text-sm">
-                {appliedFilters.invoiceDate || appliedFilters.icdcNumber
-                  ? "No orders found matching your filters."
-                  : "No saved orders yet. Upload an invoice or add orders manually above."}
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
 
       <Dialog open={showPreview} onOpenChange={(open) => { if (!open) handleRejectUpload(); }}>
         <DialogContent className="max-w-[95vw] w-full max-h-[90vh] flex flex-col">

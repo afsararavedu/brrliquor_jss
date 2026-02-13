@@ -14,6 +14,8 @@ import Inventory from "@/pages/Inventory";
 import Reports from "@/pages/Reports";
 import AuthPage from "@/pages/AuthPage";
 import ResetPassword from "@/pages/ResetPassword";
+import AboutUs from "@/pages/AboutUs";
+import ContactUs from "@/pages/ContactUs";
 
 function ProtectedRoute({ component: Component, path, role }: { component: React.ComponentType, path: string, role?: string }) {
   const { user, isLoading } = useAuth();
@@ -58,6 +60,13 @@ function Router() {
               
               <Route path="/credits" component={() => <div className="p-12 text-center text-muted-foreground">Credits Module Coming Soon</div>} />
               <Route path="/calendar" component={() => <div className="p-12 text-center text-muted-foreground">Calendar Module Coming Soon</div>} />
+              
+              <Route path="/about">
+                <ProtectedRoute component={AboutUs} path="/about" />
+              </Route>
+              <Route path="/contact">
+                <ProtectedRoute component={ContactUs} path="/contact" />
+              </Route>
               
               <Route component={NotFound} />
             </Switch>
