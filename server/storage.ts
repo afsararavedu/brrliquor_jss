@@ -84,7 +84,7 @@ export class DatabaseStorage implements IStorage {
       const [updated] = await db.insert(dailySales)
         .values({ ...sale, date: today })
         .onConflictDoUpdate({
-          target: dailySales.brandNumber,
+          target: [dailySales.brandNumber, dailySales.size],
           set: {
             ...sale,
             date: today,
@@ -284,16 +284,15 @@ export class DatabaseStorage implements IStorage {
     let updatedSalesCount = 0;
     let createdSalesCount = 0;
     const processedSaleIds = new Set<number>();
-    const processedBrandNumbers = new Set<string>();
 
     for (const stock of allStock) {
+      const normalizedStockSize = stock.size.trim().toLowerCase().replace(/\s+/g, "");
+
       const matchedSale = allSales.find(sale => {
         if (processedSaleIds.has(sale.id)) return false;
         if (sale.brandNumber !== stock.brandNumber) return false;
-        if (sale.brandName.trim().toLowerCase() !== stock.brandName.trim().toLowerCase()) return false;
-        const stockSize = stock.size.trim().toLowerCase().replace(/\s+/g, "");
         const saleSize = sale.size.trim().toLowerCase().replace(/\s+/g, "");
-        if (stockSize !== saleSize && !stockSize.includes(saleSize) && !saleSize.includes(stockSize)) return false;
+        if (normalizedStockSize !== saleSize && !normalizedStockSize.includes(saleSize) && !saleSize.includes(normalizedStockSize)) return false;
         return true;
       });
 
@@ -308,33 +307,39 @@ export class DatabaseStorage implements IStorage {
 
         processedSaleIds.add(matchedSale.id);
         updatedSalesCount++;
-      } else if (!processedBrandNumbers.has(stock.brandNumber)) {
-        const existingSale = allSales.find(s => s.brandNumber === stock.brandNumber);
-        if (!existingSale) {
-          try {
-            await db.insert(dailySales).values({
-              brandNumber: stock.brandNumber,
-              brandName: stock.brandName,
-              size: stock.size,
-              quantityPerCase: stock.quantityPerCase,
+      } else {
+        try {
+          const [created] = await db.insert(dailySales).values({
+            brandNumber: stock.brandNumber,
+            brandName: stock.brandName,
+            size: stock.size,
+            quantityPerCase: stock.quantityPerCase,
+            openingBalanceBottles: stock.totalStockBottles ?? 0,
+            newStockCases: stock.stockInCases ?? 0,
+            newStockBottles: stock.stockInBottles ?? 0,
+            closingBalanceCases: 0,
+            closingBalanceBottles: 0,
+            mrp: stock.mrp || '0',
+            totalSaleValue: '0',
+            soldBottles: 0,
+            saleValue: '0',
+            breakageBottles: 0,
+            totalClosingStock: 0,
+            finalClosingBalance: '0',
+          }).onConflictDoUpdate({
+            target: [dailySales.brandNumber, dailySales.size],
+            set: {
               openingBalanceBottles: stock.totalStockBottles ?? 0,
               newStockCases: stock.stockInCases ?? 0,
               newStockBottles: stock.stockInBottles ?? 0,
-              closingBalanceCases: 0,
-              closingBalanceBottles: 0,
-              mrp: stock.mrp || '0',
-              totalSaleValue: '0',
-              soldBottles: 0,
-              saleValue: '0',
-              breakageBottles: 0,
-              totalClosingStock: 0,
-              finalClosingBalance: '0',
-            });
-            processedBrandNumbers.add(stock.brandNumber);
+            },
+          }).returning();
+          if (created) {
             createdSalesCount++;
-          } catch (e: any) {
-            console.log(`Skipping daily_sales insert for brand ${stock.brandNumber}: ${e.message}`);
+            allSales.push(created);
           }
+        } catch (e: any) {
+          console.log(`Skipping daily_sales insert for brand ${stock.brandNumber} size ${stock.size}: ${e.message}`);
         }
       }
     }

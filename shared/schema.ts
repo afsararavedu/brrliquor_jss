@@ -1,5 +1,5 @@
 
-import { pgTable, text, serial, integer, numeric, date, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, numeric, date, timestamp, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -8,7 +8,7 @@ import { z } from "zod";
 // Table for the "Sales" page (matching figmascreen.png)
 export const dailySales = pgTable("daily_sales", {
   id: serial("id").primaryKey(),
-  brandNumber: text("brand_number").notNull().unique(), // Added unique to brandNumber for upsert
+  brandNumber: text("brand_number").notNull(),
   brandName: text("brand_name").notNull(),
   size: text("size").notNull(),
   quantityPerCase: integer("quantity_per_case").notNull(),
@@ -27,7 +27,9 @@ export const dailySales = pgTable("daily_sales", {
   finalClosingBalance: numeric("final_closing_balance").default('0'),
   date: date("date").defaultNow(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("daily_sales_brand_size_idx").on(table.brandNumber, table.size),
+]);
 
 // Table for the "Other Data" -> Order Form (matching Image 1)
 export const orders = pgTable("orders", {
