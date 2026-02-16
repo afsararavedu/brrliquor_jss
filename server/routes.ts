@@ -385,7 +385,7 @@ export async function registerRoutes(
 
       const salesSync = await storage.syncStockToDailySales();
       console.log(
-        `Sales sync: ${salesSync.updatedSalesCount} daily sales rows updated from stock`,
+        `Sales sync: ${salesSync.updatedSalesCount} updated, ${salesSync.createdSalesCount} created in daily sales from stock`,
       );
 
       res.status(201).json(result);
@@ -413,7 +413,7 @@ export async function registerRoutes(
 
       const salesSync = await storage.syncStockToDailySales();
       console.log(
-        `Sales sync (from stock update): ${salesSync.updatedSalesCount} daily sales rows updated`,
+        `Sales sync (from stock update): ${salesSync.updatedSalesCount} updated, ${salesSync.createdSalesCount} created in daily sales`,
       );
 
       res.status(201).json(result);
@@ -437,7 +437,7 @@ export async function registerRoutes(
 
       const salesSync = await storage.syncStockToDailySales();
       console.log(
-        `Sales sync: ${salesSync.updatedSalesCount} daily sales rows updated from stock`,
+        `Sales sync: ${salesSync.updatedSalesCount} updated, ${salesSync.createdSalesCount} created in daily sales from stock`,
       );
 
       res.json(syncResult);

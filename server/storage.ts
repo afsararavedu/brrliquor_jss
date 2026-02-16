@@ -32,7 +32,7 @@ export interface IStorage {
   getStockDetails(): Promise<StockDetail[]>;
   bulkUpdateStockDetails(stock: InsertStockDetail[]): Promise<StockDetail[]>;
   syncOrdersToStock(): Promise<{ syncedOrderIds: number[]; updatedStockCount: number }>;
-  syncStockToDailySales(): Promise<{ updatedSalesCount: number }>;
+  syncStockToDailySales(): Promise<{ updatedSalesCount: number; createdSalesCount: number }>;
   syncDailySalesToStock(): Promise<{ updatedStockCount: number }>;
 
   sessionStore: session.Store;
@@ -273,41 +273,73 @@ export class DatabaseStorage implements IStorage {
     return { syncedOrderIds, updatedStockCount };
   }
 
-  async syncStockToDailySales(): Promise<{ updatedSalesCount: number }> {
+  async syncStockToDailySales(): Promise<{ updatedSalesCount: number; createdSalesCount: number }> {
     const allStock = await db.select().from(stockDetails);
-    const allSales = await db.select().from(dailySales);
+    let allSales = await db.select().from(dailySales);
 
-    if (allStock.length === 0 || allSales.length === 0) {
-      return { updatedSalesCount: 0 };
+    if (allStock.length === 0) {
+      return { updatedSalesCount: 0, createdSalesCount: 0 };
     }
 
     let updatedSalesCount = 0;
+    let createdSalesCount = 0;
+    const processedSaleIds = new Set<number>();
+    const processedBrandNumbers = new Set<string>();
 
-    for (const sale of allSales) {
-      const matchedStock = allStock.find(s => {
-        if (s.brandNumber !== sale.brandNumber) return false;
-        if (s.brandName.trim().toLowerCase() !== sale.brandName.trim().toLowerCase()) return false;
-        const stockSize = s.size.trim().toLowerCase().replace(/\s+/g, "");
+    for (const stock of allStock) {
+      const matchedSale = allSales.find(sale => {
+        if (processedSaleIds.has(sale.id)) return false;
+        if (sale.brandNumber !== stock.brandNumber) return false;
+        if (sale.brandName.trim().toLowerCase() !== stock.brandName.trim().toLowerCase()) return false;
+        const stockSize = stock.size.trim().toLowerCase().replace(/\s+/g, "");
         const saleSize = sale.size.trim().toLowerCase().replace(/\s+/g, "");
         if (stockSize !== saleSize && !stockSize.includes(saleSize) && !saleSize.includes(stockSize)) return false;
-        if (s.quantityPerCase !== sale.quantityPerCase) return false;
         return true;
       });
 
-      if (matchedStock) {
+      if (matchedSale) {
         await db.update(dailySales)
           .set({
-            openingBalanceBottles: matchedStock.totalStockBottles ?? 0,
-            newStockCases: matchedStock.stockInCases ?? 0,
-            newStockBottles: matchedStock.stockInBottles ?? 0,
+            openingBalanceBottles: stock.totalStockBottles ?? 0,
+            newStockCases: stock.stockInCases ?? 0,
+            newStockBottles: stock.stockInBottles ?? 0,
           })
-          .where(eq(dailySales.id, sale.id));
+          .where(eq(dailySales.id, matchedSale.id));
 
+        processedSaleIds.add(matchedSale.id);
         updatedSalesCount++;
+      } else if (!processedBrandNumbers.has(stock.brandNumber)) {
+        const existingSale = allSales.find(s => s.brandNumber === stock.brandNumber);
+        if (!existingSale) {
+          try {
+            await db.insert(dailySales).values({
+              brandNumber: stock.brandNumber,
+              brandName: stock.brandName,
+              size: stock.size,
+              quantityPerCase: stock.quantityPerCase,
+              openingBalanceBottles: stock.totalStockBottles ?? 0,
+              newStockCases: stock.stockInCases ?? 0,
+              newStockBottles: stock.stockInBottles ?? 0,
+              closingBalanceCases: 0,
+              closingBalanceBottles: 0,
+              mrp: stock.mrp || '0',
+              totalSaleValue: '0',
+              soldBottles: 0,
+              saleValue: '0',
+              breakageBottles: 0,
+              totalClosingStock: 0,
+              finalClosingBalance: '0',
+            });
+            processedBrandNumbers.add(stock.brandNumber);
+            createdSalesCount++;
+          } catch (e: any) {
+            console.log(`Skipping daily_sales insert for brand ${stock.brandNumber}: ${e.message}`);
+          }
+        }
       }
     }
 
-    return { updatedSalesCount };
+    return { updatedSalesCount, createdSalesCount };
   }
 
   async syncDailySalesToStock(): Promise<{ updatedStockCount: number }> {
