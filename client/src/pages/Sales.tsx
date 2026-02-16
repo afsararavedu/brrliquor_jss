@@ -10,16 +10,42 @@ import {
   Save,
   Loader2,
   Download,
+  RefreshCw,
 } from "lucide-react";
 import { type DailySale } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { PaginationCustom } from "@/components/ui/pagination-custom";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { useMutation } from "@tanstack/react-query";
 
 export default function Sales() {
   const { data: sales, isLoading } = useSales();
   const { mutate: updateSales, isPending: isSaving } = useBulkUpdateSales();
   const { toast } = useToast();
   const [localSales, setLocalSales] = useState<DailySale[]>([]);
+
+  const { mutate: syncFromStock, isPending: isSyncing } = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/sales/sync-from-stock");
+      return res.json();
+    },
+    onSuccess: (data: { updatedSalesCount: number; createdSalesCount: number }) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/sales"] });
+      toast({
+        title: "Stock Synced to Sales",
+        description: `${data.updatedSalesCount} rows updated, ${data.createdSalesCount} new rows created from stock.`,
+        className: "bg-green-50 border-green-200 text-green-800",
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "Sync Failed",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -219,14 +245,30 @@ export default function Sales() {
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
         {/* Toolbar */}
         <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-4 justify-between items-center bg-card">
-          <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              placeholder="Search by brand name or code..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-            />
+          <div className="flex items-center gap-3 w-full sm:w-auto flex-wrap">
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                placeholder="Search by brand name or code..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                data-testid="input-search-sales"
+                className="w-full pl-10 pr-4 py-2 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+              />
+            </div>
+            <button
+              onClick={() => syncFromStock()}
+              disabled={isSyncing}
+              data-testid="button-sync-stock-to-sales"
+              className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-xl font-medium shadow-md hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {isSyncing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              Get Stock into Sales
+            </button>
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">

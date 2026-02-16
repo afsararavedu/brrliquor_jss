@@ -358,6 +358,20 @@ export async function registerRoutes(
     }
   });
 
+  app.post(api.sales.syncFromStock.path, async (req, res) => {
+    try {
+      const result = await storage.syncStockToDailySales();
+      console.log(
+        `Manual stock-to-sales sync: ${result.updatedSalesCount} updated, ${result.createdSalesCount} created`,
+      );
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({
+        message: "Failed to sync stock to sales: " + err.message,
+      });
+    }
+  });
+
   // Orders
   app.get(api.orders.list.path, async (req, res) => {
     const invoiceDate = req.query.invoice_date as string | undefined;
