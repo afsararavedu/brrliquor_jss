@@ -51,7 +51,7 @@ export default function ContactUs() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-sm mb-1">Our registered office:</p>
-            <p className="font-medium" data-testid="text-contact-address">BRR Liquor Software Pvt Ltd.</p>
+            <p className="font-medium" data-testid="text-contact-address">BRR IT Solutions .</p>
             <p className="text-sm text-muted-foreground">India</p>
           </CardContent>
         </Card>

@@ -6,14 +6,14 @@ export default function AboutUs() {
     <div className="max-w-4xl mx-auto py-8 px-4 animate-in fade-in duration-500 select-none">
       <div className="mb-8">
         <h1 className="text-3xl font-display font-bold text-foreground" data-testid="text-about-title">About Us</h1>
-        <p className="text-muted-foreground mt-2">Learn more about BRR Liquor Software Pvt Ltd. and our mission.</p>
+        <p className="text-muted-foreground mt-2">Learn more about BRR IT Solutions and our mission.</p>
       </div>
 
       <Card className="mb-8" data-testid="card-about-whoweare">
         <CardContent className="pt-6">
           <h2 className="text-xl font-bold font-display text-foreground mb-3" data-testid="text-about-whoweare">Who We Are</h2>
           <p className="text-muted-foreground leading-relaxed">
-            BRR Liquor Software Pvt Ltd. is a technology company dedicated to building modern, efficient software solutions
+            BRR IT Solutions is a technology company dedicated to building modern, efficient software solutions
             for liquor retail and distribution businesses. Our flagship product, the BRR Liquor Portal, streamlines daily
             operations including sales tracking, inventory management, stock control, and order processing.
           </p>
