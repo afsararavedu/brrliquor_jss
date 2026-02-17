@@ -19,6 +19,11 @@ BRR Liquor Portal (BRR Liquor Software Pvt Ltd.) is a full-stack sales managemen
 - Saved Orders section on Inventory page supports filtering by invoice_date and icdc_number
 - API endpoint: GET /api/orders?invoice_date=X&icdc_number=Y
 
+### Shop Details Extraction
+- `shop_details` table stores metadata from PDF invoice headers: Name, Address, Retail Shop Excise Tax, License No, PAN Number, Name & Phone, Invoice Date, Gazette Code & Licensee Issue Date, ICDC Number
+- Automatically extracted and saved when a PDF invoice is uploaded via the file upload endpoint
+- API endpoint: GET /api/shop-details returns all saved shop detail records (newest first)
+
 ### Stock-to-DailySales Sync
 - After stock is updated (from orders or direct stock edit), daily_sales rows are auto-updated
 - Matches on: brand_number, brand_name, size, quantity_per_case
