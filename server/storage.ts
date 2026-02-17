@@ -39,6 +39,8 @@ export interface IStorage {
   // Shop Details
   createShopDetail(shop: InsertShopDetail): Promise<ShopDetail>;
   getShopDetails(): Promise<ShopDetail[]>;
+  getShopDetailByLicenseNo(licenseNo: string): Promise<ShopDetail | undefined>;
+  getShopDetailByIcdcNumber(icdcNumber: string): Promise<ShopDetail | undefined>;
 
   sessionStore: session.Store;
 }
@@ -395,6 +397,16 @@ export class DatabaseStorage implements IStorage {
 
   async getShopDetails(): Promise<ShopDetail[]> {
     return await db.select().from(shopDetails).orderBy(desc(shopDetails.id));
+  }
+
+  async getShopDetailByLicenseNo(licenseNo: string): Promise<ShopDetail | undefined> {
+    const [detail] = await db.select().from(shopDetails).where(eq(shopDetails.licenseNo, licenseNo)).limit(1);
+    return detail;
+  }
+
+  async getShopDetailByIcdcNumber(icdcNumber: string): Promise<ShopDetail | undefined> {
+    const [detail] = await db.select().from(shopDetails).where(eq(shopDetails.icdcNumber, icdcNumber)).limit(1);
+    return detail;
   }
 }
 

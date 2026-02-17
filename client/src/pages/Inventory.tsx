@@ -14,9 +14,11 @@ import {
   Search,
   Filter,
   X,
-  Download
+  Download,
+  Store
 } from "lucide-react";
-import { type InsertOrder, type Order } from "@shared/schema";
+import { type InsertOrder, type Order, type ShopDetail } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { PaginationCustom } from "@/components/ui/pagination-custom";
@@ -87,6 +89,26 @@ export default function Inventory() {
   const { data: savedOrders, isLoading: isLoadingOrders } = useOrders(appliedFilters);
   const [savedPage, setSavedPage] = useState(1);
   const [savedPageSize, setSavedPageSize] = useState(10);
+
+  // Shop Details Dialog State
+  const [showShopDetail, setShowShopDetail] = useState(false);
+  const [selectedIcdcNumber, setSelectedIcdcNumber] = useState<string>("");
+
+  const handleViewShopDetail = (icdcNum: string) => {
+    if (!icdcNum) return;
+    setSelectedIcdcNumber(icdcNum);
+    setShowShopDetail(true);
+  };
+
+  const { data: shopDetailData, isLoading: isLoadingShopDetail } = useQuery<ShopDetail>({
+    queryKey: ['/api/shop-details/by-icdc', selectedIcdcNumber],
+    queryFn: async () => {
+      const res = await fetch(`/api/shop-details/by-icdc/${encodeURIComponent(selectedIcdcNumber)}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: showShopDetail && !!selectedIcdcNumber,
+  });
 
   const handleApplyFilters = () => {
     setAppliedFilters({
@@ -408,7 +430,17 @@ export default function Inventory() {
                           <tr key={order.id} className="hover:bg-muted/30 transition-colors" data-testid={`row-saved-order-${globalIdx}`}>
                             <td className="table-cell text-muted-foreground text-center">{globalIdx + 1}</td>
                             <td className="table-cell text-sm">{order.invoiceDate || "-"}</td>
-                            <td className="table-cell text-xs font-mono">{order.icdcNumber || "-"}</td>
+                            <td className="table-cell text-xs font-mono">
+                              {order.icdcNumber ? (
+                                <button
+                                  onClick={() => handleViewShopDetail(order.icdcNumber!)}
+                                  className="text-primary underline hover:text-primary/80 cursor-pointer"
+                                  data-testid={`link-shop-detail-${globalIdx}`}
+                                >
+                                  {order.icdcNumber}
+                                </button>
+                              ) : "-"}
+                            </td>
                             <td className="table-cell font-mono text-sm">{order.brandNumber}</td>
                             <td className="table-cell text-sm">{order.brandName}</td>
                             <td className="table-cell text-sm">{order.productType}</td>
@@ -758,6 +790,50 @@ export default function Inventory() {
               Confirm & Save ({previewOrders.length} orders)
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shop Details Dialog */}
+      <Dialog open={showShopDetail} onOpenChange={setShowShopDetail}>
+        <DialogContent className="max-w-lg" data-testid="dialog-shop-detail">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Store className="w-5 h-5" />
+              Shop Details
+            </DialogTitle>
+            <DialogDescription>
+              Details extracted from the invoice PDF header
+            </DialogDescription>
+          </DialogHeader>
+          {isLoadingShopDetail ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : shopDetailData ? (
+            <div className="space-y-3">
+              {[
+                { label: "Name", value: shopDetailData.name },
+                { label: "Address", value: shopDetailData.address },
+                { label: "Retail Shop Excise Tax", value: shopDetailData.retailShopExciseTax },
+                { label: "License No", value: shopDetailData.licenseNo },
+                { label: "PAN Number", value: shopDetailData.panNumber },
+                { label: "Name & Phone", value: shopDetailData.namePhone },
+                { label: "Invoice Date", value: shopDetailData.invoiceDate },
+                { label: "Gazette Code & Licensee Issue Date", value: shopDetailData.gazetteCodeLicenseeIssueDate },
+                { label: "ICDC Number", value: shopDetailData.icdcNumber },
+              ].map((item) => (
+                <div key={item.label} className="flex flex-col gap-0.5" data-testid={`text-shop-${item.label.toLowerCase().replace(/\s+/g, '-')}`}>
+                  <span className="text-xs font-medium text-muted-foreground">{item.label}</span>
+                  <span className="text-sm text-foreground">{item.value || "-"}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-sm">No shop details found for this ICDC number.</p>
+              <p className="text-xs mt-1">Shop details are extracted when a PDF invoice is uploaded.</p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

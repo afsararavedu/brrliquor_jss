@@ -551,6 +551,30 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/shop-details/by-license/:licenseNo", async (req, res) => {
+    try {
+      const detail = await storage.getShopDetailByLicenseNo(req.params.licenseNo);
+      if (!detail) {
+        return res.status(404).json({ message: "No shop details found for this license number" });
+      }
+      res.json(detail);
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to fetch shop details: " + err.message });
+    }
+  });
+
+  app.get("/api/shop-details/by-icdc/:icdcNumber", async (req, res) => {
+    try {
+      const detail = await storage.getShopDetailByIcdcNumber(req.params.icdcNumber);
+      if (!detail) {
+        return res.status(404).json({ message: "No shop details found for this ICDC number" });
+      }
+      res.json(detail);
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to fetch shop details: " + err.message });
+    }
+  });
+
   app.get("/api/template/download", (req, res) => {
     const format = (req.query.format as string) || "pdf";
 
