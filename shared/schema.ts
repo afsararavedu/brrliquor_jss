@@ -120,6 +120,29 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
+// Shop details table - extracted from PDF invoice headers
+export const shopDetails = pgTable("shop_details", {
+  id: serial("id").primaryKey(),
+  name: text("name"),
+  address: text("address"),
+  retailShopExciseTax: text("retail_shop_excise_tax"),
+  licenseNo: text("license_no"),
+  panNumber: text("pan_number"),
+  namePhone: text("name_phone"),
+  invoiceDate: text("invoice_date"),
+  gazetteCodeLicenseeIssueDate: text("gazette_code_licensee_issue_date"),
+  icdcNumber: text("icdc_number"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertShopDetailSchema = createInsertSchema(shopDetails).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ShopDetail = typeof shopDetails.$inferSelect;
+export type InsertShopDetail = z.infer<typeof insertShopDetailSchema>;
+
 // Request types
 export type BulkCreateDailySalesRequest = InsertDailySale[];
 export type BulkCreateOrdersRequest = InsertOrder[];

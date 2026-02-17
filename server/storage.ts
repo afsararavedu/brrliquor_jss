@@ -1,10 +1,11 @@
 
 import { 
-  dailySales, orders, stockDetails, users,
+  dailySales, orders, stockDetails, users, shopDetails,
   type DailySale, type InsertDailySale,
   type Order, type InsertOrder,
   type StockDetail, type InsertStockDetail,
-  type User, type InsertUser
+  type User, type InsertUser,
+  type ShopDetail, type InsertShopDetail
 } from "@shared/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import session from "express-session";
@@ -34,6 +35,10 @@ export interface IStorage {
   syncOrdersToStock(): Promise<{ syncedOrderIds: number[]; updatedStockCount: number }>;
   syncStockToDailySales(): Promise<{ updatedSalesCount: number; createdSalesCount: number }>;
   syncDailySalesToStock(): Promise<{ updatedStockCount: number }>;
+
+  // Shop Details
+  createShopDetail(shop: InsertShopDetail): Promise<ShopDetail>;
+  getShopDetails(): Promise<ShopDetail[]>;
 
   sessionStore: session.Store;
 }
@@ -381,6 +386,15 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { updatedStockCount };
+  }
+
+  async createShopDetail(shop: InsertShopDetail): Promise<ShopDetail> {
+    const [created] = await db.insert(shopDetails).values(shop).returning();
+    return created;
+  }
+
+  async getShopDetails(): Promise<ShopDetail[]> {
+    return await db.select().from(shopDetails).orderBy(desc(shopDetails.id));
   }
 }
 
