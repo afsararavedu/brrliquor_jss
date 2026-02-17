@@ -170,7 +170,7 @@ function parseSpreadsheet(buffer: Buffer, filename: string) {
 
 async function parsePdfInvoice(
   buffer: Buffer,
-): Promise<(typeof EMPTY_ORDER)[]> {
+): Promise<{ orders: (typeof EMPTY_ORDER)[]; shopDetail: Record<string, string> | null }> {
   const { PDFParse } = await import("pdf-parse");
   const uint8 = new Uint8Array(buffer);
   const parser = new PDFParse(uint8);
@@ -184,6 +184,14 @@ async function parsePdfInvoice(
 
   let invoiceDate = "";
   let icdcNumber = "";
+  let shopName = "";
+  let shopAddress = "";
+  let retailShopExciseTax = "";
+  let licenseNo = "";
+  let panNumber = "";
+  let namePhone = "";
+  let gazetteCodeLicenseeIssueDate = "";
+
   for (const line of lines) {
     const dateMatch = line.match(/Invoice\s*Date\s*:\s*(.+?)(?:\s{2,}|$)/i);
     if (dateMatch && !invoiceDate) {
@@ -199,10 +207,82 @@ async function parsePdfInvoice(
         icdcNumber = standaloneIcdc[1].trim();
       }
     }
-    if (invoiceDate && icdcNumber) break;
+
+    const licMatch = line.match(/License\s*No\s*[:.]\s*(.+)/i);
+    if (licMatch && !licenseNo) {
+      licenseNo = licMatch[1].trim();
+    }
+
+    const panMatch = line.match(/PAN\s*(Number|No)?\s*[:.]\s*(.+)/i);
+    if (panMatch && !panNumber) {
+      panNumber = panMatch[2].trim();
+    }
+
+    const exciseMatch = line.match(/Retail\s*Shop\s*Excise\s*Tax\s*[:.]\s*(.+)/i);
+    if (exciseMatch && !retailShopExciseTax) {
+      retailShopExciseTax = exciseMatch[1].trim();
+    }
+
+    if (!retailShopExciseTax && line.match(/Retail\s*Shop\s*Excise\s*Tax/i)) {
+      const addressLine = line.trim();
+      const exciseParts = addressLine.split(/Retail\s*Shop\s*Excise\s*Tax\s*/i);
+      if (exciseParts.length > 1) {
+        retailShopExciseTax = exciseParts[1].replace(/^[:.]\s*/, "").trim();
+        if (exciseParts[0]) {
+          shopAddress = exciseParts[0].trim();
+        }
+      }
+    }
+
+    const phoneMatch = line.match(/(?:Name|Phone|Mobile|Contact)\s*[&\/,]\s*(?:Phone|Name|Mobile|Contact)\s*[:.]\s*(.+)/i);
+    if (phoneMatch && !namePhone) {
+      namePhone = phoneMatch[1].trim();
+    }
+
+    const gazetteMatch = line.match(/Gazette\s*Code\s*[&,]\s*Licensee\s*Issue\s*Date\s*[:.]\s*(.+)/i);
+    if (gazetteMatch && !gazetteCodeLicenseeIssueDate) {
+      gazetteCodeLicenseeIssueDate = gazetteMatch[1].trim();
+    }
+    if (!gazetteCodeLicenseeIssueDate) {
+      const altGazette = line.match(/Gazette\s*Code.*?[:.]\s*(.+)/i);
+      if (altGazette) {
+        gazetteCodeLicenseeIssueDate = altGazette[1].trim();
+      }
+    }
   }
 
-  const orders: (typeof EMPTY_ORDER)[] = [];
+  if (lines.length > 0 && !shopName) {
+    for (let idx = 0; idx < Math.min(5, lines.length); idx++) {
+      const l = lines[idx];
+      if (l.match(/^(Duplicate|Original|Tax\s*Invoice|Invoice\s*No|Sl\.?\s*No|ICDC|Invoice\s*Date)/i)) continue;
+      if (l.match(/License\s*No|PAN|Gazette|Retail\s*Shop/i)) continue;
+      if (!shopName) {
+        shopName = l;
+        continue;
+      }
+      if (!shopAddress && !l.match(/License\s*No|PAN|Gazette|Retail\s*Shop|Invoice/i)) {
+        shopAddress = l;
+        break;
+      }
+    }
+  }
+
+  const shopDetail: Record<string, string> = {
+    name: shopName,
+    address: shopAddress,
+    retailShopExciseTax,
+    licenseNo,
+    panNumber,
+    namePhone,
+    invoiceDate,
+    gazetteCodeLicenseeIssueDate,
+    icdcNumber,
+  };
+
+  const hasShopData = Object.values(shopDetail).some(v => v && v.length > 0);
+  
+
+  const parsedOrders: (typeof EMPTY_ORDER)[] = [];
   let i = 0;
 
   while (i < lines.length) {
@@ -279,7 +359,7 @@ async function parsePdfInvoice(
       totalAmt = cleanNum(nums[2]);
     }
 
-    orders.push({
+    parsedOrders.push({
       ...EMPTY_ORDER,
       brandNumber,
       brandName: brandName.replace(/\s+/g, " ").trim(),
@@ -296,20 +376,20 @@ async function parsePdfInvoice(
     });
   }
 
-  if (orders.length === 0) {
+  if (parsedOrders.length === 0) {
     throw new Error(
       "Could not extract any order data from the PDF. Please ensure it follows the invoice format.",
     );
   }
 
-  return orders;
+  return { orders: parsedOrders, shopDetail: hasShopData ? shopDetail : null };
 }
 
-async function parseUploadedFile(buffer: Buffer, filename: string) {
+async function parseUploadedFile(buffer: Buffer, filename: string): Promise<{ orders: (typeof EMPTY_ORDER)[]; shopDetail: Record<string, string> | null }> {
   const ext = filename.toLowerCase().split(".").pop() || "";
 
   if (ext === "csv" || ext === "xls" || ext === "xlsx") {
-    return parseSpreadsheet(buffer, filename);
+    return { orders: parseSpreadsheet(buffer, filename), shopDetail: null };
   } else if (ext === "pdf") {
     return parsePdfInvoice(buffer);
   } else {
@@ -462,6 +542,15 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/shop-details", async (_req, res) => {
+    try {
+      const details = await storage.getShopDetails();
+      res.json(details);
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to fetch shop details: " + err.message });
+    }
+  });
+
   app.get("/api/template/download", (req, res) => {
     const format = (req.query.format as string) || "pdf";
 
@@ -561,15 +650,25 @@ export async function registerRoutes(
     }
 
     try {
-      const parsedOrders = await parseUploadedFile(
+      const result = await parseUploadedFile(
         req.file.buffer,
         req.file.originalname,
       );
+
+      if (result.shopDetail) {
+        try {
+          await storage.createShopDetail(result.shopDetail as any);
+        } catch (shopErr: any) {
+          console.error("Failed to save shop details:", shopErr.message);
+        }
+      }
+
       res.json({
-        message: `Successfully parsed ${parsedOrders.length} orders from file. Please review and confirm before saving.`,
+        message: `Successfully parsed ${result.orders.length} orders from file. Please review and confirm before saving.`,
         filename: req.file.originalname,
-        orders: parsedOrders,
-        ordersCount: parsedOrders.length,
+        orders: result.orders,
+        ordersCount: result.orders.length,
+        shopDetail: result.shopDetail,
       });
     } catch (err: any) {
       res.status(500).json({ message: "Failed to parse file: " + err.message });
