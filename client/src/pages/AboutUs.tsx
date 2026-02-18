@@ -14,7 +14,7 @@ export default function AboutUs() {
           <h2 className="text-xl font-bold font-display text-foreground mb-3" data-testid="text-about-whoweare">Who We Are</h2>
           <p className="text-muted-foreground leading-relaxed">
             BRR IT Solutions is a technology company dedicated to building modern, efficient software solutions
-            for liquor retail and distribution businesses. Our flagship product, the BRR Liquor Portal, streamlines daily
+            for liquor retail and distribution businesses. Our flagship product, the BRR Liquor Soft, streamlines daily
             operations including sales tracking, inventory management, stock control, and order processing.
           </p>
         </CardContent>

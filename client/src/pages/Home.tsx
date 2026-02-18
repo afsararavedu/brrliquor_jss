@@ -6,7 +6,7 @@ export default function Home() {
     <div className="max-w-5xl mx-auto py-12 px-4 animate-in fade-in zoom-in duration-500 select-none">
       <div className="text-center mb-16 space-y-4">
         <h1 className="text-5xl font-display font-bold text-foreground">
-          Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-600">BRR Liquor Portal</span>
+          Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-orange-600">BRR Liquor Soft</span>
         </h1>
         <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
           Manage your daily sales, inventory, and orders with a professional, comprehensive dashboard.

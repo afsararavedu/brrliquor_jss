@@ -1,8 +1,8 @@
-# BRR Liquor Portal
+# BRR Liquor Soft
 
 ## Overview
 
-BRR Liquor Portal (BRR Liquor Software Pvt Ltd.) is a full-stack sales management dashboard application for tracking daily sales, inventory, and orders. It features a React frontend with a modern UI built on shadcn/ui components, and an Express backend with PostgreSQL database storage using Drizzle ORM. The application provides modules for daily sales tracking, order management, file uploads, and various placeholder modules for future expansion (Stock, Reports, Credits, Calendar).
+BRR Liquor Soft (BRR IT Solutions) is a full-stack sales management dashboard application for tracking daily sales, inventory, and orders. It features a React frontend with a modern UI built on shadcn/ui components, and an Express backend with PostgreSQL database storage using Drizzle ORM. The application provides modules for daily sales tracking, order management, file uploads, and various placeholder modules for future expansion (Stock, Reports, Credits, Calendar).
 
 ### Order-to-Stock Sync
 - Triggered manually via "Get Latest Stock" button on Stock page (POST /api/stock/sync)

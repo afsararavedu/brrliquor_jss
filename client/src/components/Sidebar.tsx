@@ -42,7 +42,7 @@ export function Sidebar() {
           B
         </div>
         <div>
-          <h1 className="font-display font-bold text-lg text-foreground leading-none">BRR Liquor Portal</h1>
+          <h1 className="font-display font-bold text-lg text-foreground leading-none">BRR Liquor Soft</h1>
           <p className="text-xs text-muted-foreground font-medium mt-1">{user?.role === 'admin' ? 'Admin' : 'Employee'} Portal</p>
         </div>
       </div>
