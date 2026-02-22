@@ -302,7 +302,7 @@ export default function Sales() {
               <tr className="bg-secondary/30">
                 <th className="table-header w-24 border-r border-border min-h-[48px] py-2">SNo</th>
                 <th className="table-header w-24 border-r border-border min-h-[48px] py-2">Brand No</th>
-                <th className="table-header w-32 border-r border-border min-h-[48px] py-2">Brand Name</th>
+                <th className="table-header border-r border-border min-h-[48px] py-2">Brand Name</th>
                 <th className="table-header w-24 border-r border-border min-h-[48px] py-2">Size</th>
                 <th className="table-header w-24 border-r border-border min-h-[48px] py-2">Quantity In Case</th>
                 <th className="table-header w-24 border-r border-border min-h-[48px] py-2">Opening Balance (Bottles)</th>

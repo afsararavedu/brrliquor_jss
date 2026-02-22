@@ -150,7 +150,7 @@ export default function Stock() {
               <tr className="bg-secondary/30">
                 <th className="table-header w-16">SNo</th>
                 <th className="table-header w-24">Brand No</th>
-                <th className="table-header w-32">Brand Name</th>
+                <th className="table-header">Brand Name</th>
                 <th className="table-header w-24">Size</th>
                 <th className="table-header w-24">Qty/Case</th>
                 <th className="table-header w-32 bg-blue-50/50">Stock (Cases)</th>
