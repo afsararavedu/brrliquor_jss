@@ -296,7 +296,7 @@ export default function Sales() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto table-typography">
           <table className="w-full min-w-[1200px]">
             <thead>
               <tr className="bg-secondary/30">

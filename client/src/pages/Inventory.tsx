@@ -401,7 +401,7 @@ export default function Inventory() {
             </div>
           ) : savedOrders && savedOrders.length > 0 ? (
             <>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto table-typography">
                 <table className="w-full min-w-[1400px]">
                   <thead>
                     <tr className="bg-muted/50 border-b border-border">
@@ -504,7 +504,7 @@ export default function Inventory() {
         </div>
 
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto table-typography">
             <table className="w-full min-w-[1400px]">
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
@@ -702,7 +702,7 @@ export default function Inventory() {
             )}
           </DialogHeader>
 
-          <div className="flex-1 overflow-auto border border-border rounded-lg">
+          <div className="flex-1 overflow-auto border border-border rounded-lg table-typography">
             <table className="w-full min-w-[1200px]">
               <thead>
                 <tr className="bg-muted/50 border-b border-border sticky top-0 z-10">
