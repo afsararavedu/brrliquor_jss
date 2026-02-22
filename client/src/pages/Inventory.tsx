@@ -409,7 +409,7 @@ export default function Inventory() {
                       <th className="table-header w-28">Invoice Date</th>
                       <th className="table-header w-48">ICDC Number</th>
                       <th className="table-header w-24">Brand No</th>
-                      <th className="table-header w-40">Brand Name</th>
+                      <th className="table-header w-20">Brand Name</th>
                       <th className="table-header w-20">Type</th>
                       <th className="table-header w-16">Pack</th>
                       <th className="table-header w-28">Size (ml)</th>
@@ -510,7 +510,7 @@ export default function Inventory() {
                 <tr className="bg-muted/50 border-b border-border">
                   <th className="table-header w-12">#</th>
                   <th className="table-header w-32">Brand No</th>
-                  <th className="table-header w-48">Brand Name</th>
+                  <th className="table-header w-24">Brand Name</th>
                   <th className="table-header w-32">Type</th>
                   <th className="table-header w-24">Pack</th>
                   <th className="table-header w-36">Size (ml)</th>
@@ -708,7 +708,7 @@ export default function Inventory() {
                 <tr className="bg-muted/50 border-b border-border sticky top-0 z-10">
                   <th className="table-header w-12">#</th>
                   <th className="table-header w-28">Brand No</th>
-                  <th className="table-header w-48">Brand Name</th>
+                  <th className="table-header w-24">Brand Name</th>
                   <th className="table-header w-20">Type</th>
                   <th className="table-header w-16">Pack</th>
                   <th className="table-header w-32">Size (ml)</th>
