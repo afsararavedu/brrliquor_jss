@@ -1,29 +1,41 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSales, useBulkUpdateSales } from "@/hooks/use-sales";
-import { StatCard } from "@/components/StatCard";
 import {
-  DollarSign,
-  PackageCheck,
-  TrendingUp,
-  Archive,
   Search,
   Save,
   Loader2,
   Download,
   RefreshCw,
+  Store,
 } from "lucide-react";
-import { type DailySale } from "@shared/schema";
+import { type DailySale, type ShopDetail } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { PaginationCustom } from "@/components/ui/pagination-custom";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+
+interface SalesSummary {
+  openingBalanceValue: number;
+  newStockValue: number;
+  soldStockValue: number;
+  closingBalanceValue: number;
+  categories: Record<string, { opening: number; newStock: number; sold: number; closing: number }>;
+}
 
 export default function Sales() {
   const { data: sales, isLoading } = useSales();
   const { mutate: updateSales, isPending: isSaving } = useBulkUpdateSales();
   const { toast } = useToast();
   const [localSales, setLocalSales] = useState<DailySale[]>([]);
+
+  const { data: shopDetails } = useQuery<ShopDetail[]>({
+    queryKey: ["/api/shop-details"],
+  });
+
+  const { data: summary } = useQuery<SalesSummary>({
+    queryKey: ["/api/sales/summary"],
+  });
 
   const { mutate: syncFromStock, isPending: isSyncing } = useMutation({
     mutationFn: async () => {
@@ -193,15 +205,19 @@ export default function Sales() {
   const totalPages = Math.ceil(filteredSales.length / pageSize);
   const paginatedSales = filteredSales.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  // Calculate totals for cards
-  const totalSalesValue = localSales.reduce(
-    (acc, curr) => acc + parseFloat(curr.totalSaleValue || "0"),
-    0,
-  );
-  const closingStockValue = localSales.reduce(
-    (acc, curr) => acc + curr.closingBalanceCases! * parseFloat(curr.mrp),
-    0,
-  );
+  const formatCurrency = (val: number) => {
+    if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`;
+    if (val >= 100000) return `₹${(val / 100000).toFixed(2)}L`;
+    return `₹${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const shopName = shopDetails?.[0]?.name || "Shop Name";
+
+  const cats = summary?.categories || {};
+  const imlCount = (field: keyof typeof cats[string]) =>
+    (cats["IML"]?.[field] || 0) + (cats["IMFL"]?.[field] || 0);
+  const beerCount = (field: keyof typeof cats[string]) =>
+    cats["Beer"]?.[field] || 0;
 
   if (isLoading) {
     return (
@@ -212,33 +228,67 @@ export default function Sales() {
   }
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        <StatCard
-          title="Opening Balance"
-          value="₹ 12.4M"
-          icon={DollarSign}
-          trend="+2.5%"
-          trendUp={true}
-        />
-        <StatCard
-          title="New Stock / Indent"
-          value="₹ 4.2M"
-          icon={PackageCheck}
-        />
-        <StatCard
-          title="Sales Value"
-          value={`₹ ${(totalSalesValue / 1000000).toFixed(2)}M`}
-          icon={TrendingUp}
-          className="border-primary/20 bg-primary/5"
-        />
-        <StatCard
-          title="Closing Value"
-          value={`₹ ${(closingStockValue / 1000000).toFixed(2)}M`}
-          icon={DollarSign}
-        />
-        <StatCard title="Closing Stock" value="1,240 Cs" icon={Archive} />
+    <div className="space-y-4 animate-in fade-in duration-500">
+      {/* Shop Name */}
+      <div className="flex items-center gap-3" data-testid="text-shop-name">
+        <Store className="w-5 h-5 text-muted-foreground" />
+        <h2 className="text-xl font-semibold text-foreground">{shopName}</h2>
+      </div>
+
+      {/* Value Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-opening-balance-value">
+          <p className="text-xs font-medium text-muted-foreground mb-1">Opening Balance Value</p>
+          <p className="text-lg font-bold text-foreground">{formatCurrency(summary?.openingBalanceValue || 0)}</p>
+        </div>
+        <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-new-stock-value">
+          <p className="text-xs font-medium text-muted-foreground mb-1">New Stock Value</p>
+          <p className="text-lg font-bold text-foreground">{formatCurrency(summary?.newStockValue || 0)}</p>
+        </div>
+        <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-sold-stock-value">
+          <p className="text-xs font-medium text-muted-foreground mb-1">Sold Stock Value</p>
+          <div className="flex items-center gap-3">
+            <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-700 rounded dark:bg-blue-900/30 dark:text-blue-300">IML</span>
+            <span className="text-xs px-2 py-0.5 bg-amber-50 text-amber-700 rounded dark:bg-amber-900/30 dark:text-amber-300">Beer</span>
+          </div>
+          <p className="text-lg font-bold text-foreground mt-1">{formatCurrency(summary?.soldStockValue || 0)}</p>
+        </div>
+        <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-closing-balance-value">
+          <p className="text-xs font-medium text-muted-foreground mb-1">Closing Balance Value</p>
+          <p className="text-lg font-bold text-foreground">{formatCurrency(summary?.closingBalanceValue || 0)}</p>
+        </div>
+      </div>
+
+      {/* Stock Count Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-opening-stock">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Opening Stock</p>
+          <div className="space-y-1 text-sm font-semibold text-foreground">
+            <p>IML - {imlCount("opening").toLocaleString()}</p>
+            <p>Beer - {beerCount("opening").toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-new-stock">
+          <p className="text-xs font-medium text-muted-foreground mb-2">New Stock</p>
+          <div className="space-y-1 text-sm font-semibold text-foreground">
+            <p>IML - {imlCount("newStock").toLocaleString()}</p>
+            <p>Beer - {beerCount("newStock").toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-sold-stock">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Sold Stock</p>
+          <div className="space-y-1 text-sm font-semibold text-foreground">
+            <p>IML - {imlCount("sold").toLocaleString()}</p>
+            <p>Beer - {beerCount("sold").toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-closing-stock">
+          <p className="text-xs font-medium text-muted-foreground mb-2">Closing Stock</p>
+          <div className="space-y-1 text-sm font-semibold text-foreground">
+            <p>IML - {imlCount("closing").toLocaleString()}</p>
+            <p>Beer - {beerCount("closing").toLocaleString()}</p>
+          </div>
+        </div>
       </div>
 
       {/* Main Content Card */}
@@ -274,6 +324,7 @@ export default function Sales() {
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <button
               onClick={handleExportCSV}
+              data-testid="button-export-csv"
               className="flex items-center gap-2 px-6 py-2 bg-secondary text-secondary-foreground rounded-xl font-medium border border-border hover:bg-secondary/80 transition-all"
             >
               <Download className="w-4 h-4" />
@@ -283,6 +334,7 @@ export default function Sales() {
             <button
               onClick={handleSave}
               disabled={isSaving}
+              data-testid="button-save-sales"
               className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? (

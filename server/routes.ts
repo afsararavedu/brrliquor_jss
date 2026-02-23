@@ -542,6 +542,61 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/sales/summary", async (_req, res) => {
+    try {
+      const allSales = await storage.getDailySales();
+      const allOrders = await storage.getOrders();
+
+      const orderTypeMap: Record<string, string> = {};
+      for (const o of allOrders) {
+        orderTypeMap[o.brandNumber] = o.productType;
+      }
+
+      let openingBalanceValue = 0;
+      let newStockValue = 0;
+      let soldStockValue = 0;
+      let closingBalanceValue = 0;
+
+      const categories: Record<string, { opening: number; newStock: number; sold: number; closing: number }> = {};
+
+      for (const s of allSales) {
+        const mrp = parseFloat(s.mrp as string) || 0;
+        const qtyPerCase = s.quantityPerCase || 0;
+        const opBal = s.openingBalanceBottles || 0;
+        const newCs = s.newStockCases || 0;
+        const newBtls = s.newStockBottles || 0;
+        const soldBtls = s.soldBottles || 0;
+        const totalClosing = s.totalClosingStock || 0;
+
+        const newStockTotal = (newCs * qtyPerCase) + newBtls;
+
+        openingBalanceValue += opBal * mrp;
+        newStockValue += newStockTotal * mrp;
+        soldStockValue += soldBtls * mrp;
+        closingBalanceValue += totalClosing * mrp;
+
+        const pType = orderTypeMap[s.brandNumber] || "Other";
+        if (!categories[pType]) {
+          categories[pType] = { opening: 0, newStock: 0, sold: 0, closing: 0 };
+        }
+        categories[pType].opening += opBal;
+        categories[pType].newStock += newStockTotal;
+        categories[pType].sold += soldBtls;
+        categories[pType].closing += totalClosing;
+      }
+
+      res.json({
+        openingBalanceValue,
+        newStockValue,
+        soldStockValue,
+        closingBalanceValue,
+        categories,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to compute sales summary: " + err.message });
+    }
+  });
+
   app.get("/api/shop-details", async (_req, res) => {
     try {
       const details = await storage.getShopDetails();
