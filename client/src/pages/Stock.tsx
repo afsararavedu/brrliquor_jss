@@ -145,21 +145,21 @@ export default function Stock() {
         </div>
 
         <div className="overflow-x-auto table-typography">
-          <table className="w-full min-w-[1200px]">
+          <table className="w-full">
             <thead>
               <tr className="bg-secondary/30">
-                <th className="table-header w-16">SNo</th>
-                <th className="table-header w-24">Brand No</th>
-                <th className="table-header">Brand Name</th>
-                <th className="table-header w-24">Size</th>
-                <th className="table-header w-24">Qty/Case</th>
-                <th className="table-header w-32 bg-blue-50/50">Stock (Cases)</th>
-                <th className="table-header w-32 bg-blue-50/50">Stock (Btls)</th>
-                <th className="table-header w-32">Total Stock (Btls)</th>
-                <th className="table-header w-32">MRP</th>
-                <th className="table-header w-40 font-bold text-primary bg-primary/5">Stock Value</th>
-                <th className="table-header w-24">Breakage</th>
-                <th className="table-header w-48">Remarks</th>
+                <th className="table-header w-8">SNo</th>
+                <th className="table-header w-14">Brand No</th>
+                <th className="table-header w-24">Brand Name</th>
+                <th className="table-header w-12">Size</th>
+                <th className="table-header w-10">Qty/Cs</th>
+                <th className="table-header w-16 bg-blue-50/50">Stk (Cs)</th>
+                <th className="table-header w-16 bg-blue-50/50">Stk (Btls)</th>
+                <th className="table-header w-16">Tot Stk (Btls)</th>
+                <th className="table-header w-14">MRP</th>
+                <th className="table-header w-20 font-bold text-primary bg-primary/5">Stk Value</th>
+                <th className="table-header w-14">Breakage</th>
+                <th className="table-header w-28">Remarks</th>
               </tr>
             </thead>
             <tbody>
@@ -181,20 +181,20 @@ export default function Stock() {
                     <td className="table-cell text-right font-mono">{item.totalStockBottles}</td>
                     <td className="table-cell text-right font-mono">₹{item.mrp}</td>
                     <td className="table-cell text-right font-bold text-primary font-mono bg-primary/5">₹{item.totalStockValue}</td>
-                    <td className="p-2 border-b border-border">
+                    <td className="p-1 border-b border-border">
                       <input
                         type="number"
                         value={item.breakage || 0}
                         onChange={(e) => handleInputChange(item.id, "breakage", e.target.value)}
-                        className="w-full text-right p-1.5 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none font-mono"
+                        className="w-full text-right p-1 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none font-mono"
                       />
                     </td>
-                    <td className="p-2 border-b border-border">
+                    <td className="p-1 border-b border-border">
                       <input
                         type="text"
                         value={item.remarks || ""}
                         onChange={(e) => handleInputChange(item.id, "remarks", e.target.value)}
-                        className="w-full p-1.5 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none text-sm"
+                        className="w-full p-1 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none text-sm"
                       />
                     </td>
                   </tr>
