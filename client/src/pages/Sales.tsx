@@ -157,7 +157,7 @@ export default function Sales() {
           const closingTotal = closingBtls + (closingCs * qtyPerCase);
           const soldBottles = totalStock - closingTotal;
 
-          const saleValue = soldBottles > 0 ? soldBottles * mrp : 0;
+          const saleValue = soldBottles * mrp;
           const totalClosingStock = closingTotal;
           const finalClosingBalance = totalClosingStock * mrp;
 
@@ -466,7 +466,8 @@ export default function Sales() {
                       <td className="table-cell text-center font-mono bg-blue-50/10 group-hover:bg-blue-50/30 border-r border-border">
                         {item.mrp || 0}
                       </td>
-                      <td className="table-cell text-right font-bold text-primary font-mono border-r border-border">
+                      <td className={`table-cell text-right font-bold font-mono border-r border-border ${parseFloat(item.saleValue as string || '0') < 0 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' : 'text-primary'}`}>
+                        {parseFloat(item.saleValue as string || '0') < 0 && <span className="mr-1">⚠</span>}
                         ₹{item.saleValue}
                       </td>
                       <td className="table-cell p-1 border-r border-border">
