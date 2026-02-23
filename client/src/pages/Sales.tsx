@@ -153,14 +153,12 @@ export default function Sales() {
           const mrp = parseFloat(updatedItem.mrp as string) || 0;
           const breakage = updatedItem.breakageBottles || 0;
 
-          // Calculations based on screenshot and common sense
-          // Sold Bottles = (Op Bal + New Stock) - (Closing Bal + Breakage)
-          const totalIn = opBalBtls + (qtyPerCase * newStockCs) + newStockBtls;
-          const totalOut = (qtyPerCase * closingCs) + closingBtls + breakage;
-          const soldBottles = Math.max(0, totalIn - totalOut);
-          
-          const saleValue = soldBottles * mrp;
-          const totalClosingStock = (qtyPerCase * closingCs) + closingBtls;
+          const totalStock = opBalBtls + (qtyPerCase * newStockCs) + newStockBtls;
+          const closingTotal = closingBtls + (closingCs * qtyPerCase);
+          const soldBottles = totalStock - closingTotal;
+
+          const saleValue = soldBottles > 0 ? soldBottles * mrp : 0;
+          const totalClosingStock = closingTotal;
           const finalClosingBalance = totalClosingStock * mrp;
 
           return {
@@ -178,6 +176,18 @@ export default function Sales() {
   };
 
   const handleSave = () => {
+    const negativeItems = localSales.filter((item) => (item.soldBottles || 0) < 0);
+    if (negativeItems.length > 0) {
+      const names = negativeItems.map((item) => `${item.brandName} (${item.size})`).join(", ");
+      toast({
+        title: "Warning: Negative Sold Bottles",
+        description: `The following items have negative sold bottles: ${names}. Please check closing balance values before saving.`,
+        variant: "destructive",
+        duration: 8000,
+      });
+      return;
+    }
+
     updateSales(localSales, {
       onSuccess: () => {
         toast({
@@ -449,8 +459,9 @@ export default function Sales() {
                           className="w-full text-center p-1 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
                         />
                       </td>
-                      <td className="table-cell text-center font-mono border-r border-border">
+                      <td className={`table-cell text-center font-mono border-r border-border ${(item.soldBottles || 0) < 0 ? 'bg-red-100 text-red-700 font-bold dark:bg-red-900/30 dark:text-red-400' : ''}`}>
                         {item.soldBottles}
+                        {(item.soldBottles || 0) < 0 && <span className="block text-[9px] text-red-500">⚠ negative</span>}
                       </td>
                       <td className="table-cell text-center font-mono bg-blue-50/10 group-hover:bg-blue-50/30 border-r border-border">
                         {item.mrp || 0}
