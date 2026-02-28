@@ -272,28 +272,28 @@ export default function Sales() {
       {/* Stock Count Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-opening-stock">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Opening Stock</p>
+          <p className="text-xs font-medium text-muted-foreground mb-2">opening Stock in bottles</p>
           <div className="space-y-1 text-sm font-semibold text-foreground">
             <p>IML - {imlCount("opening").toLocaleString()}</p>
             <p>Beer - {beerCount("opening").toLocaleString()}</p>
           </div>
         </div>
         <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-new-stock">
-          <p className="text-xs font-medium text-muted-foreground mb-2">New Stock</p>
+          <p className="text-xs font-medium text-muted-foreground mb-2">New Stock in bottles</p>
           <div className="space-y-1 text-sm font-semibold text-foreground">
             <p>IML - {imlCount("newStock").toLocaleString()}</p>
             <p>Beer - {beerCount("newStock").toLocaleString()}</p>
           </div>
         </div>
         <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-sold-stock">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Sold Stock</p>
+          <p className="text-xs font-medium text-muted-foreground mb-2">Sold Stock in bottles</p>
           <div className="space-y-1 text-sm font-semibold text-foreground">
             <p>IML - {imlCount("sold").toLocaleString()}</p>
             <p>Beer - {beerCount("sold").toLocaleString()}</p>
           </div>
         </div>
         <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-closing-stock">
-          <p className="text-xs font-medium text-muted-foreground mb-2">Closing Stock</p>
+          <p className="text-xs font-medium text-muted-foreground mb-2">Closing Stock in bottles</p>
           <div className="space-y-1 text-sm font-semibold text-foreground">
             <p>IML - {imlCount("closing").toLocaleString()}</p>
             <p>Beer - {beerCount("closing").toLocaleString()}</p>
