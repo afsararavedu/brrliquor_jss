@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSales, useBulkUpdateSales } from "@/hooks/use-sales";
+import { useSales, useBulkUpdateSales, useSubmitSales, useSalesIsSubmitted } from "@/hooks/use-sales";
 import {
   Search,
   Save,
@@ -7,6 +7,10 @@ import {
   Download,
   RefreshCw,
   Store,
+  Lock,
+  CheckCircle,
+  Send,
+  Calendar,
 } from "lucide-react";
 import { type DailySale, type ShopDetail } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -23,9 +27,39 @@ interface SalesSummary {
   categories: Record<string, { opening: number; newStock: number; sold: number; closing: number }>;
 }
 
+function getTodayLocal(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getAvailableDates(): { value: string; label: string }[] {
+  const dates = [];
+  for (let i = 0; i < 3; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const value = `${y}-${m}-${day}`;
+    const label = i === 0 ? `Today (${value})` : i === 1 ? `Yesterday (${value})` : `2 days ago (${value})`;
+    dates.push({ value, label });
+  }
+  return dates;
+}
+
 export default function Sales() {
-  const { data: sales, isLoading } = useSales();
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayLocal());
+  const availableDates = getAvailableDates();
+
+  const { data: sales, isLoading } = useSales(selectedDate);
   const { mutate: updateSales, isPending: isSaving } = useBulkUpdateSales();
+  const { mutate: submitSales, isPending: isSubmitting } = useSubmitSales();
+  const { data: submissionStatus } = useSalesIsSubmitted(selectedDate);
+  const isSubmitted = submissionStatus?.isSubmitted ?? false;
+
   const { toast } = useToast();
   const [localSales, setLocalSales] = useState<DailySale[]>([]);
 
@@ -104,7 +138,7 @@ export default function Sales() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `sales_report_${new Date().toISOString().split('T')[0]}.csv`);
+      link.setAttribute("download", `sales_report_${selectedDate}.csv`);
       link.style.visibility = 'hidden';
       document.body.appendChild(link);
       link.click();
@@ -121,20 +155,27 @@ export default function Sales() {
         variant: "destructive",
       });
     }
-  }, [localSales, toast]);
+  }, [localSales, toast, selectedDate]);
 
-  // Sync local state when data loads
+  // Sync local state when data loads or date changes
   useEffect(() => {
     if (sales) {
       setLocalSales(sales);
     }
   }, [sales]);
 
+  // Reset page on date change
+  useEffect(() => {
+    setCurrentPage(1);
+    setSearchTerm("");
+  }, [selectedDate]);
+
   const handleInputChange = (
     id: number,
     field: keyof DailySale,
     value: string,
   ) => {
+    if (isSubmitted) return;
     const numValue =
       field === "mrp" ? value : value === "" ? 0 : parseInt(value, 10);
     setLocalSales((prev) =>
@@ -142,8 +183,6 @@ export default function Sales() {
         if (item.id === id) {
           const updatedItem = { ...item, [field]: numValue };
 
-          // Recalculate Total Sale Value
-          // Formula: ((Op. Bal (Btls) + Qty/Case * New Stock (Cs)) + New Stock (Btls) - (Qty/Case * Closing (Cs) + Closing (Btls))) * MRP
           const opBalBtls = updatedItem.openingBalanceBottles || 0;
           const qtyPerCase = updatedItem.quantityPerCase || 0;
           const newStockCs = updatedItem.newStockCases || 0;
@@ -176,6 +215,7 @@ export default function Sales() {
   };
 
   const handleSave = () => {
+    if (isSubmitted) return;
     const negativeItems = localSales.filter((item) => (item.soldBottles || 0) < 0);
     if (negativeItems.length > 0) {
       const names = negativeItems.map((item) => `${item.brandName} (${item.size})`).join(", ");
@@ -188,17 +228,46 @@ export default function Sales() {
       return;
     }
 
-    updateSales(localSales, {
+    updateSales({ data: localSales, date: selectedDate }, {
       onSuccess: () => {
         toast({
-          title: "Sales Updated",
-          description: "Daily sales data has been successfully updated.",
+          title: "Sales Saved",
+          description: `Sales data for ${selectedDate} has been successfully saved.`,
           className: "bg-green-50 border-green-200 text-green-800",
         });
       },
       onError: (err) => {
         toast({
           title: "Error",
+          description: err.message,
+          variant: "destructive",
+        });
+      },
+    });
+  };
+
+  const handleSubmit = () => {
+    if (isSubmitted) return;
+    if (!localSales || localSales.length === 0) {
+      toast({
+        title: "No Data",
+        description: "There is no sales data to submit for this date.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    submitSales(selectedDate, {
+      onSuccess: () => {
+        toast({
+          title: "Sales Submitted",
+          description: `Sales for ${selectedDate} have been finalized and locked.`,
+          className: "bg-green-50 border-green-200 text-green-800",
+        });
+      },
+      onError: (err) => {
+        toast({
+          title: "Submit Failed",
           description: err.message,
           variant: "destructive",
         });
@@ -243,6 +312,33 @@ export default function Sales() {
       <div className="flex items-center gap-3" data-testid="text-shop-name">
         <Store className="w-5 h-5 text-muted-foreground" />
         <h2 className="text-xl font-semibold text-foreground">{shopName}</h2>
+      </div>
+
+      {/* Date Picker */}
+      <div className="flex items-center justify-center gap-3 py-2">
+        <Calendar className="w-5 h-5 text-muted-foreground" />
+        <div className="flex gap-2 flex-wrap justify-center">
+          {availableDates.map((d) => (
+            <button
+              key={d.value}
+              onClick={() => setSelectedDate(d.value)}
+              data-testid={`button-date-${d.value}`}
+              className={`px-4 py-2 rounded-xl border font-medium text-sm transition-all ${
+                selectedDate === d.value
+                  ? "bg-primary text-primary-foreground border-primary shadow-md"
+                  : "bg-card text-foreground border-border hover:border-primary/50"
+              }`}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+        {isSubmitted && (
+          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm font-medium dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-submitted">
+            <Lock className="w-4 h-4" />
+            Submitted & Locked
+          </div>
+        )}
       </div>
 
       {/* Value Cards Row */}
@@ -318,7 +414,7 @@ export default function Sales() {
             </div>
             <button
               onClick={() => syncFromStock()}
-              disabled={isSyncing}
+              disabled={isSyncing || isSubmitted}
               data-testid="button-sync-stock-to-sales"
               className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-xl font-medium shadow-md hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
             >
@@ -341,19 +437,42 @@ export default function Sales() {
               Export CSV
             </button>
 
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              data-testid="button-save-sales"
-              className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4" />
-              )}
-              Save Sales
-            </button>
+            {isSubmitted ? (
+              <div className="flex items-center gap-2 px-6 py-2 bg-emerald-100 text-emerald-700 rounded-xl font-medium border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-locked-buttons">
+                <Lock className="w-4 h-4" />
+                Locked
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  data-testid="button-save-sales"
+                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Save Sales
+                </button>
+
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || localSales.length === 0}
+                  data-testid="button-submit-sales"
+                  className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl font-medium shadow-lg hover:bg-emerald-700 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  Submit Sales
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -392,7 +511,7 @@ export default function Sales() {
                     colSpan={17}
                     className="py-12 text-center text-muted-foreground"
                   >
-                    No sales records found matching "{searchTerm}"
+                    {searchTerm ? `No sales records found matching "${searchTerm}"` : `No sales data for ${selectedDate}`}
                   </td>
                 </tr>
               ) : (
@@ -402,7 +521,7 @@ export default function Sales() {
                   return (
                     <tr
                       key={item.id}
-                      className="hover:bg-muted/30 transition-colors group"
+                      className={`hover:bg-muted/30 transition-colors group ${isSubmitted ? "opacity-90" : ""}`}
                     >
                       <td className="table-cell font-mono text-xs text-muted-foreground border-r border-border">
                         {globalIdx + 1}
@@ -430,34 +549,44 @@ export default function Sales() {
                         {totalStock}
                       </td>
                       <td className="table-cell p-1 bg-orange-50/30 border-r border-border">
-                        <input
-                          type="number"
-                          min="0"
-                          value={item.closingBalanceCases || 0}
-                          onChange={(e) =>
-                            handleInputChange(
-                              item.id,
-                              "closingBalanceCases",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full text-center p-1 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
-                        />
+                        {isSubmitted ? (
+                          <span className="block w-full text-center font-bold text-foreground py-1">{item.closingBalanceCases || 0}</span>
+                        ) : (
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.closingBalanceCases || 0}
+                            onChange={(e) =>
+                              handleInputChange(
+                                item.id,
+                                "closingBalanceCases",
+                                e.target.value,
+                              )
+                            }
+                            data-testid={`input-closing-cases-${item.id}`}
+                            className="w-full text-center p-1 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
+                          />
+                        )}
                       </td>
                       <td className="table-cell p-1 bg-orange-50/30 border-r border-border">
-                        <input
-                          type="number"
-                          min="0"
-                          value={item.closingBalanceBottles || 0}
-                          onChange={(e) =>
-                            handleInputChange(
-                              item.id,
-                              "closingBalanceBottles",
-                              e.target.value,
-                            )
-                          }
-                          className="w-full text-center p-1 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
-                        />
+                        {isSubmitted ? (
+                          <span className="block w-full text-center font-bold text-foreground py-1">{item.closingBalanceBottles || 0}</span>
+                        ) : (
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.closingBalanceBottles || 0}
+                            onChange={(e) =>
+                              handleInputChange(
+                                item.id,
+                                "closingBalanceBottles",
+                                e.target.value,
+                              )
+                            }
+                            data-testid={`input-closing-bottles-${item.id}`}
+                            className="w-full text-center p-1 rounded-md border border-orange-200 focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none font-bold text-foreground bg-white shadow-sm"
+                          />
+                        )}
                       </td>
                       <td className={`table-cell text-center font-mono border-r border-border ${(item.soldBottles || 0) < 0 ? 'bg-red-100 text-red-700 font-bold dark:bg-red-900/30 dark:text-red-400' : ''}`}>
                         {item.soldBottles}
@@ -471,15 +600,20 @@ export default function Sales() {
                         ₹{item.saleValue}
                       </td>
                       <td className="table-cell p-1 border-r border-border">
-                        <input
-                          type="number"
-                          min="0"
-                          value={item.breakageBottles || 0}
-                          onChange={(e) =>
-                            handleInputChange(item.id, "breakageBottles", e.target.value)
-                          }
-                          className="w-full text-center p-1 rounded-md border border-input focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
-                        />
+                        {isSubmitted ? (
+                          <span className="block w-full text-center py-1">{item.breakageBottles || 0}</span>
+                        ) : (
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.breakageBottles || 0}
+                            onChange={(e) =>
+                              handleInputChange(item.id, "breakageBottles", e.target.value)
+                            }
+                            data-testid={`input-breakage-${item.id}`}
+                            className="w-full text-center p-1 rounded-md border border-input focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none"
+                          />
+                        )}
                       </td>
                       <td className="table-cell text-center font-mono border-r border-border">
                         {item.totalClosingStock}
@@ -507,14 +641,43 @@ export default function Sales() {
           totalItems={filteredSales.length}
         />
 
-        <div className="p-4 border-t border-border bg-secondary/20 flex justify-end">
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50"
-          >
-            {isSaving ? "Saving..." : "Save Sales Data"}
-          </button>
+        <div className="p-4 border-t border-border bg-secondary/20 flex justify-end gap-3">
+          {isSubmitted ? (
+            <div className="flex items-center gap-2 px-8 py-3 bg-emerald-100 text-emerald-700 rounded-xl font-bold border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-locked-footer">
+              <CheckCircle className="w-5 h-5" />
+              Sales Submitted & Locked
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                data-testid="button-save-sales-footer"
+                className="flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50"
+              >
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {isSaving ? "Saving..." : "Save Sales Data"}
+              </button>
+
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting || localSales.length === 0}
+                data-testid="button-submit-sales-footer"
+                className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg hover:bg-emerald-700 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                {isSubmitting ? "Submitting..." : "Submit Sales"}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

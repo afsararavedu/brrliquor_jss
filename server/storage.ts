@@ -1,13 +1,14 @@
 
 import { 
-  dailySales, orders, stockDetails, users, shopDetails,
+  dailySales, orders, stockDetails, users, shopDetails, salesSubmitStatus,
   type DailySale, type InsertDailySale,
   type Order, type InsertOrder,
   type StockDetail, type InsertStockDetail,
   type User, type InsertUser,
-  type ShopDetail, type InsertShopDetail
+  type ShopDetail, type InsertShopDetail,
+  type SalesSubmitStatus
 } from "@shared/schema";
-import { eq, and, sql, desc } from "drizzle-orm";
+import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { db } from "./db";
@@ -23,7 +24,12 @@ export interface IStorage {
   
   // Sales
   getDailySales(): Promise<DailySale[]>;
+  getDailySalesByDate(date: string): Promise<DailySale[]>;
   bulkUpdateDailySales(sales: InsertDailySale[]): Promise<DailySale[]>;
+  bulkUpdateDailySalesForDate(sales: InsertDailySale[], date: string): Promise<DailySale[]>;
+  submitSalesForDate(date: string): Promise<number>;
+  isSalesSubmittedForDate(date: string): Promise<boolean>;
+  getSubmitStatus(date: string): Promise<SalesSubmitStatus | undefined>;
   
   // Orders
   getOrders(): Promise<Order[]>;
@@ -34,7 +40,7 @@ export interface IStorage {
   bulkUpdateStockDetails(stock: InsertStockDetail[]): Promise<StockDetail[]>;
   syncOrdersToStock(): Promise<{ syncedOrderIds: number[]; updatedStockCount: number }>;
   syncStockToDailySales(): Promise<{ updatedSalesCount: number; createdSalesCount: number }>;
-  syncDailySalesToStock(): Promise<{ updatedStockCount: number }>;
+  syncDailySalesToStock(date?: string): Promise<{ updatedStockCount: number }>;
 
   // Shop Details
   createShopDetail(shop: InsertShopDetail): Promise<ShopDetail>;
@@ -86,6 +92,10 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(dailySales);
   }
 
+  async getDailySalesByDate(date: string): Promise<DailySale[]> {
+    return await db.select().from(dailySales).where(eq(dailySales.date, date));
+  }
+
   async bulkUpdateDailySales(salesData: InsertDailySale[]): Promise<DailySale[]> {
     const results: DailySale[] = [];
     const today = new Date().toISOString().split('T')[0];
@@ -94,7 +104,7 @@ export class DatabaseStorage implements IStorage {
       const [updated] = await db.insert(dailySales)
         .values({ ...sale, date: today })
         .onConflictDoUpdate({
-          target: [dailySales.brandNumber, dailySales.size],
+          target: [dailySales.brandNumber, dailySales.size, dailySales.date],
           set: {
             ...sale,
             date: today,
@@ -104,6 +114,64 @@ export class DatabaseStorage implements IStorage {
       results.push(updated);
     }
     return results;
+  }
+
+  async bulkUpdateDailySalesForDate(salesData: InsertDailySale[], date: string): Promise<DailySale[]> {
+    const results: DailySale[] = [];
+    
+    for (const sale of salesData) {
+      const [updated] = await db.insert(dailySales)
+        .values({ ...sale, date, isSubmitted: false })
+        .onConflictDoUpdate({
+          target: [dailySales.brandNumber, dailySales.size, dailySales.date],
+          set: {
+            closingBalanceCases: sale.closingBalanceCases,
+            closingBalanceBottles: sale.closingBalanceBottles,
+            soldBottles: sale.soldBottles,
+            saleValue: sale.saleValue,
+            totalSaleValue: sale.totalSaleValue,
+            breakageBottles: sale.breakageBottles,
+            totalClosingStock: sale.totalClosingStock,
+            finalClosingBalance: sale.finalClosingBalance,
+            mrp: sale.mrp,
+          }
+        })
+        .returning();
+      results.push(updated);
+    }
+    return results;
+  }
+
+  async submitSalesForDate(date: string): Promise<number> {
+    // Mark all daily_sales rows for this date as submitted
+    const result = await db.update(dailySales)
+      .set({ isSubmitted: true })
+      .where(eq(dailySales.date, date))
+      .returning();
+    
+    // Upsert into authoritative submit_status table
+    await db.insert(salesSubmitStatus)
+      .values({ date, isSubmitted: true, submittedAt: new Date() })
+      .onConflictDoUpdate({
+        target: [salesSubmitStatus.date],
+        set: { isSubmitted: true, submittedAt: new Date() },
+      });
+
+    return result.length;
+  }
+
+  async isSalesSubmittedForDate(date: string): Promise<boolean> {
+    // Check the authoritative submit_status table first
+    const [status] = await db.select()
+      .from(salesSubmitStatus)
+      .where(and(eq(salesSubmitStatus.date, date), eq(salesSubmitStatus.isSubmitted, true)))
+      .limit(1);
+    return !!status;
+  }
+
+  async getSubmitStatus(date: string): Promise<SalesSubmitStatus | undefined> {
+    const [status] = await db.select().from(salesSubmitStatus).where(eq(salesSubmitStatus.date, date)).limit(1);
+    return status;
   }
 
   // Orders
@@ -285,11 +353,22 @@ export class DatabaseStorage implements IStorage {
 
   async syncStockToDailySales(): Promise<{ updatedSalesCount: number; createdSalesCount: number }> {
     const allStock = await db.select().from(stockDetails);
-    let allSales = await db.select().from(dailySales);
+    const today = new Date().toISOString().split('T')[0];
 
     if (allStock.length === 0) {
       return { updatedSalesCount: 0, createdSalesCount: 0 };
     }
+
+    // Only operate on today's date; skip if today is already submitted
+    const todaySubmitted = await this.isSalesSubmittedForDate(today);
+    if (todaySubmitted) {
+      console.log(`syncStockToDailySales: today (${today}) is already submitted, skipping.`);
+      return { updatedSalesCount: 0, createdSalesCount: 0 };
+    }
+
+    // Only load today's non-submitted sales records
+    let todaySales = await db.select().from(dailySales)
+      .where(and(eq(dailySales.date, today), eq(dailySales.isSubmitted, false)));
 
     let updatedSalesCount = 0;
     let createdSalesCount = 0;
@@ -298,7 +377,7 @@ export class DatabaseStorage implements IStorage {
     for (const stock of allStock) {
       const normalizedStockSize = stock.size.trim().toLowerCase().replace(/\s+/g, "");
 
-      const matchedSale = allSales.find(sale => {
+      const matchedSale = todaySales.find(sale => {
         if (processedSaleIds.has(sale.id)) return false;
         if (sale.brandNumber !== stock.brandNumber) return false;
         const saleSize = sale.size.trim().toLowerCase().replace(/\s+/g, "");
@@ -313,7 +392,7 @@ export class DatabaseStorage implements IStorage {
             newStockCases: stock.stockInCases ?? 0,
             newStockBottles: stock.stockInBottles ?? 0,
           })
-          .where(eq(dailySales.id, matchedSale.id));
+          .where(and(eq(dailySales.id, matchedSale.id), eq(dailySales.isSubmitted, false)));
 
         processedSaleIds.add(matchedSale.id);
         updatedSalesCount++;
@@ -336,8 +415,9 @@ export class DatabaseStorage implements IStorage {
             breakageBottles: 0,
             totalClosingStock: 0,
             finalClosingBalance: '0',
+            date: today,
           }).onConflictDoUpdate({
-            target: [dailySales.brandNumber, dailySales.size],
+            target: [dailySales.brandNumber, dailySales.size, dailySales.date],
             set: {
               openingBalanceBottles: stock.totalStockBottles ?? 0,
               newStockCases: stock.stockInCases ?? 0,
@@ -346,7 +426,7 @@ export class DatabaseStorage implements IStorage {
           }).returning();
           if (created) {
             createdSalesCount++;
-            allSales.push(created);
+            todaySales.push(created);
           }
         } catch (e: any) {
           console.log(`Skipping daily_sales insert for brand ${stock.brandNumber} size ${stock.size}: ${e.message}`);
@@ -357,18 +437,29 @@ export class DatabaseStorage implements IStorage {
     return { updatedSalesCount, createdSalesCount };
   }
 
-  async syncDailySalesToStock(): Promise<{ updatedStockCount: number }> {
-    const allSales = await db.select().from(dailySales);
+  async syncDailySalesToStock(date?: string): Promise<{ updatedStockCount: number }> {
+    // Only sync from a specific date's non-submitted records
+    // If date is provided, use that date; otherwise use today
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    
+    // Check if the target date is submitted — do not sync from submitted dates
+    const isSubmitted = await this.isSalesSubmittedForDate(targetDate);
+    if (isSubmitted) {
+      return { updatedStockCount: 0 };
+    }
+
+    const dateSales = await db.select().from(dailySales)
+      .where(and(eq(dailySales.date, targetDate), eq(dailySales.isSubmitted, false)));
     const allStock = await db.select().from(stockDetails);
 
-    if (allSales.length === 0 || allStock.length === 0) {
+    if (dateSales.length === 0 || allStock.length === 0) {
       return { updatedStockCount: 0 };
     }
 
     let updatedStockCount = 0;
 
     for (const stock of allStock) {
-      const matchedSale = allSales.find(sale => {
+      const matchedSale = dateSales.find(sale => {
         if (sale.brandNumber !== stock.brandNumber) return false;
         if (sale.brandName.trim().toLowerCase() !== stock.brandName.trim().toLowerCase()) return false;
         const saleSize = sale.size.trim().toLowerCase().replace(/\s+/g, "");

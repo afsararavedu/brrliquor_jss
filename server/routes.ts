@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { api } from "@shared/routes";
+import type { DailySale } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
 import * as XLSX from "xlsx";
@@ -410,21 +411,75 @@ export async function registerRoutes(
 
   // Sales
   app.get(api.sales.list.path, async (req, res) => {
+    const date = req.query.date as string | undefined;
+    if (date) {
+      const sales = await storage.getDailySalesByDate(date);
+      return res.json(sales);
+    }
     const sales = await storage.getDailySales();
-    // If no sales exist, maybe return some seed/mock data if we haven't seeded yet?
-    // But better to seed in the seed function.
     res.json(sales);
+  });
+
+  app.get(api.sales.isSubmitted.path, async (req, res) => {
+    const date = req.query.date as string | undefined;
+    if (!date) {
+      return res.status(400).json({ message: "date query parameter is required" });
+    }
+    const isSubmitted = await storage.isSalesSubmittedForDate(date);
+    res.json({ isSubmitted });
+  });
+
+  app.post(api.sales.submit.path, async (req, res) => {
+    try {
+      const { date } = api.sales.submit.input.parse(req.body);
+      const alreadySubmitted = await storage.isSalesSubmittedForDate(date);
+      if (alreadySubmitted) {
+        return res.status(400).json({ message: "Sales for this date are already submitted." });
+      }
+      const submittedCount = await storage.submitSalesForDate(date);
+      res.json({ submittedCount });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
   });
 
   app.post(api.sales.bulkUpdate.path, async (req, res) => {
     try {
       const input = api.sales.bulkUpdate.input.parse(req.body);
-      const result = await storage.bulkUpdateDailySales(input);
+      const date = req.query.date as string | undefined;
+      
+      // Resolve effective date: use provided date or default to today
+      const effectiveDate = date || new Date().toISOString().split('T')[0];
 
-      const stockSync = await storage.syncDailySalesToStock();
-      console.log(
-        `Stock sync from sales save: ${stockSync.updatedStockCount} stock rows updated`,
-      );
+      let result: DailySale[];
+      if (date) {
+        const isSubmitted = await storage.isSalesSubmittedForDate(date);
+        if (isSubmitted) {
+          return res.status(400).json({ message: "Sales for this date are already submitted and cannot be edited." });
+        }
+        result = await storage.bulkUpdateDailySalesForDate(input, date);
+      } else {
+        // Legacy path: use today's date, also enforce submission lock
+        const todaySubmitted = await storage.isSalesSubmittedForDate(effectiveDate);
+        if (todaySubmitted) {
+          return res.status(400).json({ message: "Sales for today are already submitted and cannot be edited." });
+        }
+        result = await storage.bulkUpdateDailySales(input);
+      }
+
+      // Only sync stock from today's sales — never overwrite current stock with historical dates
+      const today = new Date().toISOString().split('T')[0];
+      if (!date || date === today) {
+        const stockSync = await storage.syncDailySalesToStock(today);
+        console.log(
+          `Stock sync from sales save: ${stockSync.updatedStockCount} stock rows updated`,
+        );
+      } else {
+        console.log(`Skipping stock sync: save was for historical date ${date}, not today.`);
+      }
 
       res.status(201).json(result);
     } catch (err) {

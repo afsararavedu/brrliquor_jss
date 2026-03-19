@@ -26,9 +26,10 @@ export const dailySales = pgTable("daily_sales", {
   totalClosingStock: integer("total_closing_stock").default(0),
   finalClosingBalance: numeric("final_closing_balance").default('0'),
   date: date("date").defaultNow(),
+  isSubmitted: boolean("is_submitted").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
-  uniqueIndex("daily_sales_brand_size_idx").on(table.brandNumber, table.size),
+  uniqueIndex("daily_sales_brand_size_date_idx").on(table.brandNumber, table.size, table.date),
 ]);
 
 // Table for the "Other Data" -> Order Form (matching Image 1)
@@ -70,6 +71,21 @@ export const stockDetails = pgTable("stock_details", {
   date: date("date").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Table to track per-date submission status (authoritative lock per date)
+export const salesSubmitStatus = pgTable("sales_submit_status", {
+  id: serial("id").primaryKey(),
+  date: date("date").notNull().unique(),
+  isSubmitted: boolean("is_submitted").default(false).notNull(),
+  submittedAt: timestamp("submitted_at"),
+});
+
+export const insertSalesSubmitStatusSchema = createInsertSchema(salesSubmitStatus).omit({
+  id: true,
+});
+
+export type SalesSubmitStatus = typeof salesSubmitStatus.$inferSelect;
+export type InsertSalesSubmitStatus = z.infer<typeof insertSalesSubmitStatusSchema>;
 
 // === SCHEMAS ===
 

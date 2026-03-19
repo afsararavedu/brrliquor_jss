@@ -40,6 +40,22 @@ export const api = {
         }),
       },
     },
+    submit: {
+      method: 'POST' as const,
+      path: '/api/sales/submit',
+      input: z.object({ date: z.string() }),
+      responses: {
+        200: z.object({ submittedCount: z.number() }),
+        400: z.object({ message: z.string() }),
+      },
+    },
+    isSubmitted: {
+      method: 'GET' as const,
+      path: '/api/sales/is-submitted',
+      responses: {
+        200: z.object({ isSubmitted: z.boolean() }),
+      },
+    },
   },
   orders: {
     list: {
