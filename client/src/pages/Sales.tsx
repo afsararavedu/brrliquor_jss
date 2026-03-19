@@ -35,24 +35,9 @@ function getTodayLocal(): string {
   return `${y}-${m}-${d}`;
 }
 
-function getAvailableDates(): { value: string; label: string }[] {
-  const dates = [];
-  for (let i = 0; i < 3; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    const value = `${y}-${m}-${day}`;
-    const label = i === 0 ? `Today (${value})` : i === 1 ? `Yesterday (${value})` : `2 days ago (${value})`;
-    dates.push({ value, label });
-  }
-  return dates;
-}
-
 export default function Sales() {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayLocal());
-  const availableDates = getAvailableDates();
+  const todayLocal = getTodayLocal();
 
   const { data: sales, isLoading } = useSales(selectedDate);
   const { mutate: updateSales, isPending: isSaving } = useBulkUpdateSales();
@@ -315,23 +300,18 @@ export default function Sales() {
       </div>
 
       {/* Date Picker */}
-      <div className="flex items-center justify-center gap-3 py-2">
-        <Calendar className="w-5 h-5 text-muted-foreground" />
-        <div className="flex gap-2 flex-wrap justify-center">
-          {availableDates.map((d) => (
-            <button
-              key={d.value}
-              onClick={() => setSelectedDate(d.value)}
-              data-testid={`button-date-${d.value}`}
-              className={`px-4 py-2 rounded-xl border font-medium text-sm transition-all ${
-                selectedDate === d.value
-                  ? "bg-primary text-primary-foreground border-primary shadow-md"
-                  : "bg-card text-foreground border-border hover:border-primary/50"
-              }`}
-            >
-              {d.label}
-            </button>
-          ))}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 shadow-sm">
+          <Calendar className="w-4 h-4 text-muted-foreground" />
+          <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Select Date:</label>
+          <input
+            type="date"
+            value={selectedDate}
+            max={todayLocal}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            data-testid="input-date-picker"
+            className="text-sm font-semibold text-foreground bg-transparent border-none outline-none cursor-pointer"
+          />
         </div>
         {isSubmitted && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm font-medium dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-submitted">
