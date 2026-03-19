@@ -10,7 +10,7 @@ import {
   Lock,
   CheckCircle,
   Send,
-  Calendar,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { type DailySale, type ShopDetail } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,9 @@ import { PaginationCustom } from "@/components/ui/pagination-custom";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, parse, subDays } from "date-fns";
 
 interface SalesSummary {
   openingBalanceValue: number;
@@ -37,7 +40,7 @@ function getTodayLocal(): string {
 
 export default function Sales() {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayLocal());
-  const todayLocal = getTodayLocal();
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
 
   const { data: sales, isLoading } = useSales(selectedDate);
   const { mutate: updateSales, isPending: isSaving } = useBulkUpdateSales();
@@ -293,32 +296,56 @@ export default function Sales() {
 
   return (
     <div className="space-y-4 animate-in fade-in duration-500">
-      {/* Shop Name */}
-      <div className="flex items-center gap-3" data-testid="text-shop-name">
-        <Store className="w-5 h-5 text-muted-foreground" />
-        <h2 className="text-xl font-semibold text-foreground">{shopName}</h2>
-      </div>
-
-      {/* Date Picker */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 shadow-sm">
-          <Calendar className="w-4 h-4 text-muted-foreground" />
-          <label className="text-sm font-medium text-muted-foreground whitespace-nowrap">Select Date:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            max={todayLocal}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            data-testid="input-date-picker"
-            className="text-sm font-semibold text-foreground bg-transparent border-none outline-none cursor-pointer"
-          />
+      {/* Shop Name & Date Picker */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3" data-testid="text-shop-name">
+          <Store className="w-5 h-5 text-muted-foreground" />
+          <h2 className="text-xl font-semibold text-foreground">{shopName}</h2>
         </div>
-        {isSubmitted && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm font-medium dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-submitted">
-            <Lock className="w-4 h-4" />
-            Submitted & Locked
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+            <PopoverTrigger asChild>
+              <button
+                data-testid="input-date-picker"
+                className="flex items-center gap-2 bg-card border border-border rounded-xl px-3 py-2 shadow-sm cursor-pointer hover:bg-accent transition-colors"
+              >
+                <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">Select Date:</span>
+                <span className="text-sm font-semibold text-foreground">
+                  {format(parse(selectedDate, "yyyy-MM-dd", new Date()), "MM/dd/yyyy")}
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <Calendar
+                mode="single"
+                selected={parse(selectedDate, "yyyy-MM-dd", new Date())}
+                onSelect={(date) => {
+                  if (date) {
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, "0");
+                    const d = String(date.getDate()).padStart(2, "0");
+                    setSelectedDate(`${y}-${m}-${d}`);
+                    setDatePickerOpen(false);
+                  }
+                }}
+                disabled={(date) => {
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  const sevenDaysAgo = subDays(today, 6);
+                  return date > today || date < sevenDaysAgo;
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
+          {isSubmitted && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm font-medium dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-submitted">
+              <Lock className="w-4 h-4" />
+              Submitted & Locked
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Value Cards Row */}
