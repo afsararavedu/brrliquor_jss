@@ -41,6 +41,9 @@ function getTodayLocal(): string {
 export default function Sales() {
   const [selectedDate, setSelectedDate] = useState<string>(getTodayLocal());
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [exportDate, setExportDate] = useState<string>(getTodayLocal());
+  const [exportDatePickerOpen, setExportDatePickerOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data: sales, isLoading } = useSales(selectedDate);
   const { mutate: updateSales, isPending: isSaving } = useBulkUpdateSales();
@@ -84,66 +87,101 @@ export default function Sales() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const handleExportCSV = useCallback(() => {
-    if (!localSales || localSales.length === 0) return;
+  const generateCSV = useCallback((data: DailySale[], date: string) => {
+    const headers = [
+      "SNo", "Brand No", "Brand Name", "Size", "Qty/Case", 
+      "Opening Bal (Btls)", "New Stock (Cs)", "New Stock (Btls)", 
+      "Total Stock", "Closing Bal (Cs)", "Closing Bal (Btls)", 
+      "Sold Bottles", "MRP", "Sale Value", "Breakage", 
+      "Total Closing Stock", "Final Closing Bal"
+    ];
 
+    const csvContent = [
+      headers.join(","),
+      ...data.map((item, idx) => {
+        const totalStock = (item.openingBalanceBottles || 0) + ((item.quantityPerCase || 0) * (item.newStockCases || 0)) + (item.newStockBottles || 0);
+        return [
+          idx + 1,
+          `"${item.brandNumber}"`,
+          `"${item.brandName}"`,
+          `"${item.size}"`,
+          item.quantityPerCase,
+          item.openingBalanceBottles,
+          item.newStockCases,
+          item.newStockBottles,
+          totalStock,
+          item.closingBalanceCases,
+          item.closingBalanceBottles,
+          item.soldBottles,
+          item.mrp,
+          item.saleValue,
+          item.breakageBottles,
+          item.totalClosingStock,
+          item.finalClosingBalance
+        ].join(",");
+      })
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `sales_report_${date}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleExportCSV = useCallback(async () => {
     try {
-      const headers = [
-        "SNo", "Brand No", "Brand Name", "Size", "Qty/Case", 
-        "Opening Bal (Btls)", "New Stock (Cs)", "New Stock (Btls)", 
-        "Total Stock", "Closing Bal (Cs)", "Closing Bal (Btls)", 
-        "Sold Bottles", "MRP", "Sale Value", "Breakage", 
-        "Total Closing Stock", "Final Closing Bal"
-      ];
-
-      const csvContent = [
-        headers.join(","),
-        ...localSales.map((item, idx) => {
-          const totalStock = (item.openingBalanceBottles || 0) + ((item.quantityPerCase || 0) * (item.newStockCases || 0)) + (item.newStockBottles || 0);
-          return [
-            idx + 1,
-            `"${item.brandNumber}"`,
-            `"${item.brandName}"`,
-            `"${item.size}"`,
-            item.quantityPerCase,
-            item.openingBalanceBottles,
-            item.newStockCases,
-            item.newStockBottles,
-            totalStock,
-            item.closingBalanceCases,
-            item.closingBalanceBottles,
-            item.soldBottles,
-            item.mrp,
-            item.saleValue,
-            item.breakageBottles,
-            item.totalClosingStock,
-            item.finalClosingBalance
-          ].join(",");
-        })
-      ].join("\n");
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", `sales_report_${selectedDate}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
+      if (exportDate === selectedDate) {
+        if (!localSales || localSales.length === 0) {
+          toast({
+            title: "No Data",
+            description: `No sales data found for ${exportDate}.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        generateCSV(localSales, exportDate);
+      } else {
+        setIsExporting(true);
+        const res = await fetch(`/api/sales?date=${encodeURIComponent(exportDate)}`);
+        setIsExporting(false);
+        if (!res.ok) {
+          toast({
+            title: "Export Failed",
+            description: `Failed to fetch sales data for ${exportDate}.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        const data: DailySale[] = await res.json();
+        if (!data || data.length === 0) {
+          toast({
+            title: "No Data",
+            description: `No sales data found for ${exportDate}.`,
+            variant: "destructive",
+          });
+          return;
+        }
+        generateCSV(data, exportDate);
+      }
       toast({
         title: "Export Successful",
-        description: "Sales data has been exported to CSV.",
+        description: `Sales data for ${exportDate} has been exported to CSV.`,
       });
     } catch (error) {
+      setIsExporting(false);
       toast({
         title: "Export Failed",
         description: "There was an error exporting the data.",
         variant: "destructive",
       });
     }
-  }, [localSales, toast, selectedDate]);
+  }, [localSales, toast, selectedDate, exportDate, generateCSV]);
 
   // Sync local state when data loads or date changes
   useEffect(() => {
@@ -435,14 +473,55 @@ export default function Sales() {
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <button
-              onClick={handleExportCSV}
-              data-testid="button-export-csv"
-              className="flex items-center gap-2 px-6 py-2 bg-secondary text-secondary-foreground rounded-xl font-medium border border-border hover:bg-secondary/80 transition-all"
-            >
-              <Download className="w-4 h-4" />
-              Export CSV
-            </button>
+            <div className="flex items-center gap-2">
+              <Popover open={exportDatePickerOpen} onOpenChange={setExportDatePickerOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    data-testid="input-export-date-picker"
+                    className="flex items-center gap-2 bg-background border border-border rounded-xl px-3 py-2 shadow-sm cursor-pointer hover:bg-accent transition-colors"
+                  >
+                    <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-semibold text-foreground">
+                      {format(parse(exportDate, "yyyy-MM-dd", new Date()), "MM/dd/yyyy")}
+                    </span>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <Calendar
+                    mode="single"
+                    selected={parse(exportDate, "yyyy-MM-dd", new Date())}
+                    onSelect={(date) => {
+                      if (date) {
+                        const y = date.getFullYear();
+                        const m = String(date.getMonth() + 1).padStart(2, "0");
+                        const d = String(date.getDate()).padStart(2, "0");
+                        setExportDate(`${y}-${m}-${d}`);
+                        setExportDatePickerOpen(false);
+                      }
+                    }}
+                    disabled={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      return date > today;
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <button
+                onClick={handleExportCSV}
+                disabled={isExporting}
+                data-testid="button-export-csv"
+                className="flex items-center gap-2 px-6 py-2 bg-secondary text-secondary-foreground rounded-xl font-medium border border-border hover:bg-secondary/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isExporting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Export CSV
+              </button>
+            </div>
 
             {isSubmitted ? (
               <div className="flex items-center gap-2 px-6 py-2 bg-emerald-100 text-emerald-700 rounded-xl font-medium border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-locked-buttons">
