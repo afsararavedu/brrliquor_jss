@@ -76,6 +76,11 @@ export default function Inventory() {
   const [previewPage, setPreviewPage] = useState(1);
   const previewPageSize = 10;
 
+  // Duplicate invoice check state
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [pendingUploadData, setPendingUploadData] = useState<any>(null);
+  const [isCheckingDuplicate, setIsCheckingDuplicate] = useState(false);
+
   // Orders Table State
   const { mutate: saveOrders, isPending: isSaving } = useBulkCreateOrders();
   const [rows, setRows] = useState<InsertOrder[]>([{ ...EMPTY_ROW }]);
@@ -160,26 +165,50 @@ export default function Inventory() {
     }
   };
 
+  const proceedWithPreview = (data: any) => {
+    if (data.orders && data.orders.length > 0) {
+      const newOrders = data.orders.map((o: any) => ({ ...EMPTY_ROW, ...o }));
+      setPreviewOrders(newOrders);
+      setPreviewFilename(data.filename || "Uploaded File");
+      setPreviewPage(1);
+      setShowPreview(true);
+    }
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const handleUpload = () => {
     if (!selectedFile) return;
     const formData = new FormData();
     formData.append("file", selectedFile);
     
     uploadFile(formData, {
-      onSuccess: (data: any) => {
-        if (data.orders && data.orders.length > 0) {
-          const newOrders = data.orders.map((o: any) => ({
-            ...EMPTY_ROW,
-            ...o
-          }));
-          setPreviewOrders(newOrders);
-          setPreviewFilename(data.filename || selectedFile?.name || "Uploaded File");
-          setPreviewPage(1);
-          setShowPreview(true);
+      onSuccess: async (data: any) => {
+        // Extract invoice_date and icdc_number from parsed data
+        const invoiceDate = data.shopDetail?.invoiceDate || data.orders?.[0]?.invoiceDate || "";
+        const icdcNumber = data.shopDetail?.icdcNumber || data.orders?.[0]?.icdcNumber || "";
+
+        if (invoiceDate || icdcNumber) {
+          setIsCheckingDuplicate(true);
+          try {
+            const params = new URLSearchParams();
+            if (invoiceDate) params.append("invoice_date", invoiceDate);
+            if (icdcNumber) params.append("icdc_number", icdcNumber);
+            const res = await fetch(`/api/orders/check-invoice?${params.toString()}`);
+            const checkResult = await res.json();
+            setIsCheckingDuplicate(false);
+
+            if (checkResult.exists) {
+              setPendingUploadData(data);
+              setShowDuplicateDialog(true);
+              return;
+            }
+          } catch {
+            setIsCheckingDuplicate(false);
+          }
         }
-        
-        setSelectedFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = "";
+
+        proceedWithPreview(data);
       },
       onError: () => {
         toast({ 
@@ -298,10 +327,10 @@ export default function Inventory() {
               
               <button
                 onClick={handleUpload}
-                disabled={!selectedFile || isUploading}
+                disabled={!selectedFile || isUploading || isCheckingDuplicate}
                 className="px-4 py-1.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md shadow-primary/20 text-xs"
               >
-                {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Upload"}
+                {isUploading || isCheckingDuplicate ? <Loader2 className="w-3 h-3 animate-spin" /> : "Upload"}
               </button>
             </div>
           </div>
@@ -834,6 +863,55 @@ export default function Inventory() {
               <p className="text-xs mt-1">Shop details are extracted when a PDF invoice is uploaded.</p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Invoice Confirmation Dialog */}
+      <Dialog open={showDuplicateDialog} onOpenChange={(open) => {
+        if (!open) {
+          setShowDuplicateDialog(false);
+          setPendingUploadData(null);
+          setSelectedFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      }}>
+        <DialogContent className="max-w-sm" data-testid="dialog-duplicate-invoice">
+          <DialogHeader>
+            <DialogTitle className="text-amber-600 flex items-center gap-2">
+              <span>⚠</span> Invoice Already Uploaded!
+            </DialogTitle>
+            <DialogDescription className="pt-2">
+              An invoice with the same Invoice Date and ICDC Number already exists in the system.
+              <br /><br />
+              <span className="font-medium text-foreground">Do you want to upload again?</span>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 pt-2">
+            <Button
+              variant="outline"
+              data-testid="button-duplicate-cancel"
+              onClick={() => {
+                setShowDuplicateDialog(false);
+                setPendingUploadData(null);
+                setSelectedFile(null);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              data-testid="button-duplicate-confirm"
+              onClick={() => {
+                setShowDuplicateDialog(false);
+                if (pendingUploadData) {
+                  proceedWithPreview(pendingUploadData);
+                  setPendingUploadData(null);
+                }
+              }}
+            >
+              Yes, Upload Again
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

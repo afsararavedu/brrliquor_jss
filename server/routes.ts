@@ -507,6 +507,25 @@ export async function registerRoutes(
     }
   });
 
+  // Check if invoice already exists by invoice_date + icdc_number
+  app.get("/api/orders/check-invoice", async (req, res) => {
+    const invoiceDate = req.query.invoice_date as string | undefined;
+    const icdcNumber = req.query.icdc_number as string | undefined;
+    if (!invoiceDate && !icdcNumber) {
+      return res.json({ exists: false });
+    }
+    const allOrders = await storage.getOrders();
+    const exists = allOrders.some((o) => {
+      if (invoiceDate && icdcNumber) {
+        return o.invoiceDate === invoiceDate && o.icdcNumber === icdcNumber;
+      }
+      if (invoiceDate) return o.invoiceDate === invoiceDate;
+      if (icdcNumber) return o.icdcNumber === icdcNumber;
+      return false;
+    });
+    res.json({ exists, invoiceDate, icdcNumber });
+  });
+
   // Orders
   app.get(api.orders.list.path, async (req, res) => {
     const invoiceDate = req.query.invoice_date as string | undefined;
