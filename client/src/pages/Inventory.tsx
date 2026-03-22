@@ -881,9 +881,7 @@ export default function Inventory() {
               <span>⚠</span> Invoice Already Uploaded!
             </DialogTitle>
             <DialogDescription className="pt-2">
-              An invoice with the same Invoice Date and ICDC Number already exists in the system.
-              <br /><br />
-              <span className="font-medium text-foreground">Do you want to upload again?</span>
+              An invoice with the same Invoice Date and ICDC Number already exists in the system. Please check and try a different invoice.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 pt-2">
@@ -898,18 +896,6 @@ export default function Inventory() {
               }}
             >
               Cancel
-            </Button>
-            <Button
-              data-testid="button-duplicate-confirm"
-              onClick={() => {
-                setShowDuplicateDialog(false);
-                if (pendingUploadData) {
-                  proceedWithPreview(pendingUploadData);
-                  setPendingUploadData(null);
-                }
-              }}
-            >
-              Yes, Upload Again
             </Button>
           </DialogFooter>
         </DialogContent>
