@@ -21,6 +21,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format, parse, subDays } from "date-fns";
+import { useAuth } from "@/hooks/use-auth";
 
 interface SalesSummary {
   openingBalanceValue: number;
@@ -50,6 +51,18 @@ export default function Sales() {
   const { mutate: submitSales, isPending: isSubmitting } = useSubmitSales();
   const { data: submissionStatus } = useSalesIsSubmitted(selectedDate);
   const isSubmitted = submissionStatus?.isSubmitted ?? false;
+
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
+  // Admin: any date up to today. Employee: last 7 days only.
+  const isDateAllowedForAction = (() => {
+    const today = getTodayLocal();
+    if (selectedDate > today) return false;
+    if (isAdmin) return true;
+    const sevenDaysAgo = format(subDays(new Date(), 6), "yyyy-MM-dd");
+    return selectedDate >= sevenDaysAgo;
+  })();
 
   const { toast } = useToast();
   const [localSales, setLocalSales] = useState<DailySale[]>([]);
@@ -370,8 +383,10 @@ export default function Sales() {
                 disabled={(date) => {
                   const today = new Date();
                   today.setHours(0, 0, 0, 0);
+                  if (date > today) return true;
+                  if (isAdmin) return false;
                   const sevenDaysAgo = subDays(today, 6);
-                  return date > today || date < sevenDaysAgo;
+                  return date < sevenDaysAgo;
                 }}
                 initialFocus
               />
@@ -527,6 +542,11 @@ export default function Sales() {
               <div className="flex items-center gap-2 px-6 py-2 bg-emerald-100 text-emerald-700 rounded-xl font-medium border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-locked-buttons">
                 <Lock className="w-4 h-4" />
                 Locked
+              </div>
+            ) : !isDateAllowedForAction ? (
+              <div className="flex items-center gap-2 px-6 py-2 bg-amber-50 text-amber-700 rounded-xl font-medium border border-amber-200 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400" data-testid="status-date-restricted">
+                <Lock className="w-4 h-4" />
+                Date outside allowed range
               </div>
             ) : (
               <>
@@ -732,6 +752,11 @@ export default function Sales() {
             <div className="flex items-center gap-2 px-8 py-3 bg-emerald-100 text-emerald-700 rounded-xl font-bold border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-locked-footer">
               <CheckCircle className="w-5 h-5" />
               Sales Submitted & Locked
+            </div>
+          ) : !isDateAllowedForAction ? (
+            <div className="flex items-center gap-2 px-8 py-3 bg-amber-50 text-amber-700 rounded-xl font-bold border border-amber-200 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400" data-testid="status-date-restricted-footer">
+              <Lock className="w-5 h-5" />
+              Date outside allowed range
             </div>
           ) : (
             <>
