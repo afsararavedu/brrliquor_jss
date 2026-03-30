@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@shared/routes";
-import { type StockDetail, type InsertStockDetail } from "@shared/schema";
+import { type StockDetail, type InsertStockDetail, type DailyStock } from "@shared/schema";
 import { StatCard } from "@/components/StatCard";
 import {
   Package,
@@ -11,11 +11,20 @@ import {
   Search,
   Save,
   Loader2,
-  Download,
   RefreshCw,
+  Calendar as CalendarIcon,
+  History,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { PaginationCustom } from "@/components/ui/pagination-custom";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { format, parse, subDays } from "date-fns";
+
+function getTodayLocal(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
 
 export default function Stock() {
   const queryClient = useQueryClient();
@@ -25,6 +34,12 @@ export default function Stock() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  // Date picker state
+  const [stockViewDate, setStockViewDate] = useState<string>(getTodayLocal());
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const isToday = stockViewDate === getTodayLocal();
+
+  // Current stock (editable, always today's live data)
   const { data: stock, isLoading } = useQuery<StockDetail[]>({
     queryKey: [api.stock.list.path],
     queryFn: async () => {
@@ -32,6 +47,18 @@ export default function Stock() {
       if (!res.ok) throw new Error("Failed to fetch stock data");
       return await res.json();
     },
+    enabled: isToday,
+  });
+
+  // Historical stock (read-only, from daily_stock snapshot)
+  const { data: historicalStock, isLoading: isLoadingHistorical } = useQuery<DailyStock[]>({
+    queryKey: ["/api/daily-stock", stockViewDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/daily-stock?date=${stockViewDate}`);
+      if (!res.ok) throw new Error("Failed to fetch historical stock");
+      return await res.json();
+    },
+    enabled: !isToday,
   });
 
   const { mutate: syncStock, isPending: isSyncing } = useMutation({
@@ -60,29 +87,22 @@ export default function Stock() {
   });
 
   useEffect(() => {
-    if (stock) setLocalStock(stock);
-  }, [stock]);
+    if (stock && isToday) setLocalStock(stock);
+  }, [stock, isToday]);
 
   const handleInputChange = (id: number, field: keyof StockDetail, value: string) => {
     setLocalStock((prev) =>
       prev.map((item) => {
         if (item.id === id) {
           const updatedItem = { ...item, [field]: value === "" ? 0 : value };
-          
           if (["stockInCases", "stockInBottles", "quantityPerCase", "mrp", "breakage"].includes(field)) {
             const cases = Number(updatedItem.stockInCases) || 0;
             const bottles = Number(updatedItem.stockInBottles) || 0;
             const qtyPerCase = Number(updatedItem.quantityPerCase) || 0;
             const mrp = parseFloat(updatedItem.mrp as string) || 0;
-            
             const totalBottles = (cases * qtyPerCase) + bottles;
             const totalValue = totalBottles * mrp;
-            
-            return {
-              ...updatedItem,
-              totalStockBottles: totalBottles,
-              totalStockValue: totalValue.toFixed(2),
-            };
+            return { ...updatedItem, totalStockBottles: totalBottles, totalStockValue: totalValue.toFixed(2) };
           }
           return updatedItem;
         }
@@ -91,7 +111,10 @@ export default function Stock() {
     );
   };
 
-  const filteredStock = localStock.filter(
+  // Use either current or historical stock for display
+  const displayStock: (StockDetail | DailyStock)[] = isToday ? localStock : (historicalStock || []);
+
+  const filteredStock = displayStock.filter(
     (item) =>
       item.brandName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.brandNumber.toLowerCase().includes(searchTerm.toLowerCase())
@@ -100,11 +123,13 @@ export default function Stock() {
   const totalPages = Math.ceil(filteredStock.length / pageSize);
   const paginatedStock = filteredStock.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  const totalValue = localStock.reduce((acc, curr) => acc + parseFloat(curr.totalStockValue || "0"), 0);
-  const totalBottles = localStock.reduce((acc, curr) => acc + (curr.totalStockBottles || 0), 0);
-  const totalBreakage = localStock.reduce((acc, curr) => acc + (curr.breakage || 0), 0);
+  const totalValue = displayStock.reduce((acc, curr) => acc + parseFloat(curr.totalStockValue || "0"), 0);
+  const totalBottles = displayStock.reduce((acc, curr) => acc + (curr.totalStockBottles || 0), 0);
+  const totalBreakage = displayStock.reduce((acc, curr) => acc + (curr.breakage || 0), 0);
 
-  if (isLoading) {
+  const isLoadingAny = (isToday && isLoading) || (!isToday && isLoadingHistorical);
+
+  if (isLoadingAny) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
@@ -123,25 +148,81 @@ export default function Stock() {
 
       <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden flex flex-col">
         <div className="p-4 border-b border-border flex flex-col sm:flex-row gap-4 justify-between items-center bg-card">
-          <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <input
-              placeholder="Search by Brand No or Brand Name..."
-              value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-              data-testid="input-search-stock"
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
-            />
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Date Picker */}
+            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  data-testid="button-stock-date-picker"
+                  className="flex items-center gap-2 px-3 py-2 border border-input rounded-xl bg-background hover:bg-muted transition-all text-sm font-medium"
+                >
+                  <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                  {isToday ? "Today (Current Stock)" : format(parse(stockViewDate, "yyyy-MM-dd", new Date()), "dd-MMM-yyyy")}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={parse(stockViewDate, "yyyy-MM-dd", new Date())}
+                  onSelect={(date) => {
+                    if (date) {
+                      const y = date.getFullYear();
+                      const m = String(date.getMonth() + 1).padStart(2, "0");
+                      const d = String(date.getDate()).padStart(2, "0");
+                      setStockViewDate(`${y}-${m}-${d}`);
+                      setDatePickerOpen(false);
+                      setCurrentPage(1);
+                    }
+                  }}
+                  disabled={(date) => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return date > today;
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            {!isToday && (
+              <button
+                onClick={() => { setStockViewDate(getTodayLocal()); setCurrentPage(1); }}
+                className="text-xs px-3 py-1.5 rounded-lg border border-primary/30 text-primary hover:bg-primary/10 transition-all font-medium"
+              >
+                Back to Current
+              </button>
+            )}
+
+            {!isToday && (
+              <span className="flex items-center gap-1 text-xs px-3 py-1.5 bg-amber-50 text-amber-700 rounded-lg border border-amber-200 font-medium">
+                <History className="w-3.5 h-3.5" />
+                Historical View — Read Only
+              </span>
+            )}
+
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                placeholder="Search brand..."
+                value={searchTerm}
+                onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+                data-testid="input-search-stock"
+                className="w-full pl-10 pr-4 py-2 rounded-xl border border-input bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all text-sm"
+              />
+            </div>
           </div>
-          <button
-            onClick={() => syncStock()}
-            disabled={isSyncing}
-            data-testid="button-get-latest-stock"
-            className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg hover:bg-primary/90 transition-all disabled:opacity-50"
-          >
-            {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-            Get Latest Stock
-          </button>
+
+          {isToday && (
+            <button
+              onClick={() => syncStock()}
+              disabled={isSyncing}
+              data-testid="button-get-latest-stock"
+              className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg hover:bg-primary/90 transition-all disabled:opacity-50"
+            >
+              {isSyncing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              Get Latest Stock
+            </button>
+          )}
         </div>
 
         <div className="overflow-x-auto table-typography">
@@ -163,7 +244,15 @@ export default function Stock() {
               </tr>
             </thead>
             <tbody>
-              {paginatedStock.map((item, idx) => {
+              {paginatedStock.length === 0 ? (
+                <tr>
+                  <td colSpan={12} className="text-center py-12 text-muted-foreground">
+                    {isToday
+                      ? "No stock data available. Sync from orders to populate."
+                      : `No stock snapshot found for ${format(parse(stockViewDate, "yyyy-MM-dd", new Date()), "dd-MMM-yyyy")}. Save sales for that date to create a snapshot.`}
+                  </td>
+                </tr>
+              ) : paginatedStock.map((item, idx) => {
                 const globalIdx = (currentPage - 1) * pageSize + idx;
                 return (
                   <tr key={item.id} className="hover:bg-muted/30 transition-colors group">
@@ -172,31 +261,36 @@ export default function Stock() {
                     <td className="table-cell font-medium">{item.brandName}</td>
                     <td className="table-cell text-muted-foreground">{item.size}</td>
                     <td className="table-cell text-center">{item.quantityPerCase}</td>
-                    <td className="table-cell text-right font-mono bg-blue-50/10 group-hover:bg-blue-50/30">
-                      {item.stockInCases || 0}
-                    </td>
-                    <td className="table-cell text-right font-mono bg-blue-50/10 group-hover:bg-blue-50/30">
-                      {item.stockInBottles || 0}
-                    </td>
+                    <td className="table-cell text-right font-mono bg-blue-50/10 group-hover:bg-blue-50/30">{item.stockInCases || 0}</td>
+                    <td className="table-cell text-right font-mono bg-blue-50/10 group-hover:bg-blue-50/30">{item.stockInBottles || 0}</td>
                     <td className="table-cell text-right font-mono">{item.totalStockBottles}</td>
                     <td className="table-cell text-right font-mono">₹{item.mrp}</td>
                     <td className="table-cell text-right font-bold text-primary font-mono bg-primary/5">₹{item.totalStockValue}</td>
-                    <td className="p-1 border-b border-border">
-                      <input
-                        type="number"
-                        value={item.breakage || 0}
-                        onChange={(e) => handleInputChange(item.id, "breakage", e.target.value)}
-                        className="w-full text-right p-1 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none font-mono"
-                      />
-                    </td>
-                    <td className="p-1 border-b border-border">
-                      <input
-                        type="text"
-                        value={item.remarks || ""}
-                        onChange={(e) => handleInputChange(item.id, "remarks", e.target.value)}
-                        className="w-full p-1 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none text-sm"
-                      />
-                    </td>
+                    {isToday ? (
+                      <>
+                        <td className="p-1 border-b border-border">
+                          <input
+                            type="number"
+                            value={(item as StockDetail).breakage || 0}
+                            onChange={(e) => handleInputChange((item as StockDetail).id, "breakage", e.target.value)}
+                            className="w-full text-right p-1 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none font-mono"
+                          />
+                        </td>
+                        <td className="p-1 border-b border-border">
+                          <input
+                            type="text"
+                            value={(item as StockDetail).remarks || ""}
+                            onChange={(e) => handleInputChange((item as StockDetail).id, "remarks", e.target.value)}
+                            className="w-full p-1 rounded-md border border-input focus:ring-2 focus:ring-primary/20 outline-none text-sm"
+                          />
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="table-cell text-right font-mono text-muted-foreground">{item.breakage || 0}</td>
+                        <td className="table-cell text-muted-foreground text-sm">{item.remarks || "—"}</td>
+                      </>
+                    )}
                   </tr>
                 );
               })}
@@ -204,8 +298,8 @@ export default function Stock() {
             <tfoot>
               <tr className="bg-muted/50 font-bold">
                 <td colSpan={5} className="table-cell text-right">Total</td>
-                <td className="table-cell text-right">{localStock.reduce((acc, curr) => acc + (curr.stockInCases || 0), 0)}</td>
-                <td className="table-cell text-right">{localStock.reduce((acc, curr) => acc + (curr.stockInBottles || 0), 0)}</td>
+                <td className="table-cell text-right">{displayStock.reduce((acc, curr) => acc + (curr.stockInCases || 0), 0)}</td>
+                <td className="table-cell text-right">{displayStock.reduce((acc, curr) => acc + (curr.stockInBottles || 0), 0)}</td>
                 <td className="table-cell text-right">{totalBottles}</td>
                 <td className="table-cell"></td>
                 <td className="table-cell text-right text-primary">₹{totalValue.toFixed(2)}</td>
@@ -221,10 +315,7 @@ export default function Stock() {
           totalPages={totalPages}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
-          onPageSizeChange={(size) => {
-            setPageSize(size);
-            setCurrentPage(1);
-          }}
+          onPageSizeChange={(size) => { setPageSize(size); setCurrentPage(1); }}
           totalItems={filteredStock.length}
         />
       </div>

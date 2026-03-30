@@ -414,7 +414,24 @@ export async function registerRoutes(
     const date = req.query.date as string | undefined;
     if (date) {
       const sales = await storage.getDailySalesByDate(date);
-      return res.json(sales);
+      // Override opening_balance_bottles from previous day's daily_stock
+      const prevDate = new Date(date);
+      prevDate.setDate(prevDate.getDate() - 1);
+      const prevDateStr = prevDate.toISOString().split("T")[0];
+      const prevDayStock = await storage.getDailyStockByDate(prevDateStr);
+      const salesWithOpBal = sales.map((sale) => {
+        const prevStock = prevDayStock.find((s) => {
+          if (s.brandNumber !== sale.brandNumber) return false;
+          const sNorm = s.size.trim().toLowerCase().replace(/\s+/g, "");
+          const dNorm = sale.size.trim().toLowerCase().replace(/\s+/g, "");
+          return sNorm === dNorm || sNorm.includes(dNorm) || dNorm.includes(sNorm);
+        });
+        return {
+          ...sale,
+          openingBalanceBottles: prevDayStock.length > 0 ? (prevStock?.totalStockBottles ?? 0) : 0,
+        };
+      });
+      return res.json(salesWithOpBal);
     }
     const sales = await storage.getDailySales();
     res.json(sales);
@@ -481,6 +498,10 @@ export async function registerRoutes(
         console.log(`Skipping stock sync: save was for historical date ${date}, not today.`);
       }
 
+      // Always snapshot closing stock to daily_stock for the saved date
+      await storage.upsertDailyStockSnapshot(effectiveDate);
+      console.log(`Daily stock snapshot saved for date ${effectiveDate}`);
+
       res.status(201).json(result);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -505,6 +526,14 @@ export async function registerRoutes(
         message: "Failed to sync stock to sales: " + err.message,
       });
     }
+  });
+
+  // Daily stock by date
+  app.get("/api/daily-stock", async (req, res) => {
+    const date = req.query.date as string | undefined;
+    if (!date) return res.status(400).json({ message: "date query parameter is required" });
+    const result = await storage.getDailyStockByDate(date);
+    res.json(result);
   });
 
   // Check if invoice already exists by invoice_date + icdc_number

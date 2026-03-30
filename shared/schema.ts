@@ -72,6 +72,30 @@ export const stockDetails = pgTable("stock_details", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Daily stock snapshot — closing stock per date (derived from daily_sales closing values)
+export const dailyStock = pgTable("daily_stock", {
+  id: serial("id").primaryKey(),
+  brandNumber: text("brand_number").notNull(),
+  brandName: text("brand_name").notNull(),
+  size: text("size").notNull(),
+  quantityPerCase: integer("quantity_per_case").notNull(),
+  stockInCases: integer("stock_in_cases").default(0),
+  stockInBottles: integer("stock_in_bottles").default(0),
+  totalStockBottles: integer("total_stock_bottles").default(0),
+  mrp: numeric("mrp").notNull(),
+  totalStockValue: numeric("total_stock_value").default('0'),
+  breakage: integer("breakage").default(0),
+  remarks: text("remarks"),
+  date: date("date").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("daily_stock_brand_size_date_idx").on(table.brandNumber, table.size, table.date),
+]);
+
+export const insertDailyStockSchema = createInsertSchema(dailyStock).omit({ id: true, createdAt: true });
+export type DailyStock = typeof dailyStock.$inferSelect;
+export type InsertDailyStock = z.infer<typeof insertDailyStockSchema>;
+
 // Table to track per-date submission status (authoritative lock per date)
 export const salesSubmitStatus = pgTable("sales_submit_status", {
   id: serial("id").primaryKey(),

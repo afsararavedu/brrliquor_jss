@@ -1,12 +1,13 @@
 
 import { 
-  dailySales, orders, stockDetails, users, shopDetails, salesSubmitStatus,
+  dailySales, orders, stockDetails, users, shopDetails, salesSubmitStatus, dailyStock,
   type DailySale, type InsertDailySale,
   type Order, type InsertOrder,
   type StockDetail, type InsertStockDetail,
   type User, type InsertUser,
   type ShopDetail, type InsertShopDetail,
-  type SalesSubmitStatus
+  type SalesSubmitStatus,
+  type DailyStock,
 } from "@shared/schema";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import session from "express-session";
@@ -41,6 +42,10 @@ export interface IStorage {
   syncOrdersToStock(): Promise<{ syncedOrderIds: number[]; updatedStockCount: number }>;
   syncStockToDailySales(): Promise<{ updatedSalesCount: number; createdSalesCount: number }>;
   syncDailySalesToStock(date?: string): Promise<{ updatedStockCount: number }>;
+
+  // Daily Stock Snapshots
+  getDailyStockByDate(date: string): Promise<DailyStock[]>;
+  upsertDailyStockSnapshot(date: string): Promise<void>;
 
   // Shop Details
   createShopDetail(shop: InsertShopDetail): Promise<ShopDetail>;
@@ -482,6 +487,40 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { updatedStockCount };
+  }
+
+  async getDailyStockByDate(date: string): Promise<DailyStock[]> {
+    return await db.select().from(dailyStock).where(eq(dailyStock.date, date));
+  }
+
+  async upsertDailyStockSnapshot(date: string): Promise<void> {
+    const dateSales = await db.select().from(dailySales).where(eq(dailySales.date, date));
+    for (const sale of dateSales) {
+      const totalValue = (sale.totalClosingStock ?? 0) * parseFloat(sale.mrp as string);
+      await db.insert(dailyStock).values({
+        brandNumber: sale.brandNumber,
+        brandName: sale.brandName,
+        size: sale.size,
+        quantityPerCase: sale.quantityPerCase,
+        stockInCases: sale.closingBalanceCases ?? 0,
+        stockInBottles: sale.closingBalanceBottles ?? 0,
+        totalStockBottles: sale.totalClosingStock ?? 0,
+        mrp: sale.mrp || '0',
+        totalStockValue: totalValue.toFixed(2),
+        breakage: sale.breakageBottles ?? 0,
+        date: date,
+      }).onConflictDoUpdate({
+        target: [dailyStock.brandNumber, dailyStock.size, dailyStock.date],
+        set: {
+          stockInCases: sale.closingBalanceCases ?? 0,
+          stockInBottles: sale.closingBalanceBottles ?? 0,
+          totalStockBottles: sale.totalClosingStock ?? 0,
+          mrp: sale.mrp || '0',
+          totalStockValue: totalValue.toFixed(2),
+          breakage: sale.breakageBottles ?? 0,
+        },
+      });
+    }
   }
 
   async createShopDetail(shop: InsertShopDetail): Promise<ShopDetail> {

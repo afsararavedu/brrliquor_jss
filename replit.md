@@ -29,6 +29,13 @@ BRR Liquor Soft (BRR IT Solutions) is a full-stack sales management dashboard ap
 - Matches on: brand_number, brand_name, size, quantity_per_case
 - Fields updated: `opening_balance_bottles` (from total_stock_bottles), `new_stock_cases` (from stock_in_cases), `new_stock_bottles` (from stock_in_bottles)
 
+### Daily Stock Snapshots
+- `daily_stock` table stores a per-brand, per-date closing stock snapshot (created each time "Save Sales" is clicked)
+- Snapshot is derived from `daily_sales` closing values: `closing_balance_cases`, `closing_balance_bottles`, `total_closing_stock`
+- API endpoint: GET /api/daily-stock?date=YYYY-MM-DD returns the snapshot for that date
+- Stock page date picker: selecting today shows current (editable) stock_details; selecting a past date shows the daily_stock snapshot (read-only)
+- Sales page opening balance rule: Op. Bal (Btls) for date D = daily_stock[D-1].total_stock_bottles. If no daily_stock exists for D-1, Op. Bal = 0
+
 ### DailySales-to-Stock Sync
 - Triggered automatically when sales are saved ("Save Sales" button)
 - Matches on: brand_number, brand_name, and daily_sales.size contains stock_details.size
