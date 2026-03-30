@@ -414,27 +414,60 @@ export async function registerRoutes(
     const date = req.query.date as string | undefined;
     if (date) {
       const sales = await storage.getDailySalesByDate(date);
-      // Override opening_balance_bottles from previous day's daily_stock
+      // Fetch previous day daily_stock snapshot
       const prevDate = new Date(date);
       prevDate.setDate(prevDate.getDate() - 1);
       const prevDateStr = prevDate.toISOString().split("T")[0];
       const prevDayStock = await storage.getDailyStockByDate(prevDateStr);
-      const salesWithOpBal = sales.map((sale) => {
+      // Fetch sales MRP overrides
+      const salesMrpList = await storage.getSalesMrpDetails();
+      const salesWithOverrides = sales.map((sale) => {
         const prevStock = prevDayStock.find((s) => {
           if (s.brandNumber !== sale.brandNumber) return false;
           const sNorm = s.size.trim().toLowerCase().replace(/\s+/g, "");
           const dNorm = sale.size.trim().toLowerCase().replace(/\s+/g, "");
           return sNorm === dNorm || sNorm.includes(dNorm) || dNorm.includes(sNorm);
         });
+        const mrpOverride = salesMrpList.find((m) => {
+          if (m.brandNumber !== sale.brandNumber) return false;
+          const sNorm = m.size.trim().toLowerCase().replace(/\s+/g, "");
+          const dNorm = sale.size.trim().toLowerCase().replace(/\s+/g, "");
+          return sNorm === dNorm || sNorm.includes(dNorm) || dNorm.includes(sNorm);
+        });
         return {
           ...sale,
           openingBalanceBottles: prevDayStock.length > 0 ? (prevStock?.totalStockBottles ?? 0) : 0,
+          newStockCases: prevDayStock.length > 0 ? (prevStock?.stockInCases ?? sale.newStockCases) : sale.newStockCases,
+          newStockBottles: prevDayStock.length > 0 ? (prevStock?.stockInBottles ?? sale.newStockBottles) : sale.newStockBottles,
+          mrp: mrpOverride ? mrpOverride.salesMrp : sale.mrp,
         };
       });
-      return res.json(salesWithOpBal);
+      return res.json(salesWithOverrides);
     }
     const sales = await storage.getDailySales();
     res.json(sales);
+  });
+
+  // Sales MRP overrides
+  app.get("/api/sales-mrp", async (_req, res) => {
+    const data = await storage.getSalesMrpDetails();
+    res.json(data);
+  });
+
+  app.post("/api/sales-mrp", async (req, res) => {
+    try {
+      const { brandNumber, brandName, size, quantityPerCase, salesMrp } = req.body;
+      if (!brandNumber || !brandName || !size || !quantityPerCase) {
+        return res.status(400).json({ message: "brandNumber, brandName, size, and quantityPerCase are required" });
+      }
+      if (parseFloat(salesMrp) < 0) {
+        return res.status(400).json({ message: "salesMrp must not be less than 0" });
+      }
+      const result = await storage.upsertSalesMrpDetail({ brandNumber, brandName, size, quantityPerCase: Number(quantityPerCase), salesMrp: String(salesMrp) });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err.message });
+    }
   });
 
   app.get(api.sales.isSubmitted.path, async (req, res) => {

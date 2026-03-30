@@ -1,6 +1,6 @@
 
 import { 
-  dailySales, orders, stockDetails, users, shopDetails, salesSubmitStatus, dailyStock,
+  dailySales, orders, stockDetails, users, shopDetails, salesSubmitStatus, dailyStock, salesMrpDetails,
   type DailySale, type InsertDailySale,
   type Order, type InsertOrder,
   type StockDetail, type InsertStockDetail,
@@ -8,6 +8,7 @@ import {
   type ShopDetail, type InsertShopDetail,
   type SalesSubmitStatus,
   type DailyStock,
+  type SalesMrpDetail, type InsertSalesMrpDetail,
 } from "@shared/schema";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import session from "express-session";
@@ -46,6 +47,10 @@ export interface IStorage {
   // Daily Stock Snapshots
   getDailyStockByDate(date: string): Promise<DailyStock[]>;
   upsertDailyStockSnapshot(date: string): Promise<void>;
+
+  // Sales MRP Overrides
+  getSalesMrpDetails(): Promise<SalesMrpDetail[]>;
+  upsertSalesMrpDetail(data: InsertSalesMrpDetail): Promise<SalesMrpDetail>;
 
   // Shop Details
   createShopDetail(shop: InsertShopDetail): Promise<ShopDetail>;
@@ -521,6 +526,21 @@ export class DatabaseStorage implements IStorage {
         },
       });
     }
+  }
+
+  async getSalesMrpDetails(): Promise<SalesMrpDetail[]> {
+    return await db.select().from(salesMrpDetails).orderBy(salesMrpDetails.brandNumber);
+  }
+
+  async upsertSalesMrpDetail(data: InsertSalesMrpDetail): Promise<SalesMrpDetail> {
+    const [result] = await db.insert(salesMrpDetails).values(data).onConflictDoUpdate({
+      target: [salesMrpDetails.brandNumber, salesMrpDetails.brandName, salesMrpDetails.size, salesMrpDetails.quantityPerCase],
+      set: {
+        salesMrp: data.salesMrp,
+        updatedAt: new Date(),
+      },
+    }).returning();
+    return result;
   }
 
   async createShopDetail(shop: InsertShopDetail): Promise<ShopDetail> {

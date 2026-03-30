@@ -41,8 +41,19 @@ BRR Liquor Soft (BRR IT Solutions) is a full-stack sales management dashboard ap
 - Matches on: brand_number, brand_name, and daily_sales.size contains stock_details.size
 - Stock fields updated: `stock_in_cases` (from closing_balance_cases), `stock_in_bottles` (from closing_balance_bottles), `total_stock_bottles` (from total_closing_stock)
 
+### Sales MRP Overrides (sales_mrp_details)
+- `sales_mrp_details` table stores per-brand Sales MRP overrides (brand_number, brand_name, size, qty_per_case, sales_mrp)
+- When fetching daily_sales, the `mrp` field is replaced with `sales_mrp_details.sales_mrp` if a matching entry exists
+- Managed via "Update Sales MRP" tab on the Inventory (invoice) page
+- Dropdowns are populated with unique values from stock_details (cascading: brand_no → brand_name → size → qty/cs)
+- API endpoints: GET /api/sales-mrp, POST /api/sales-mrp (upsert)
+
+### New Stock from Previous Day's Snapshot
+- When the Sales page loads for date D, `new_stock_cases` and `new_stock_bottles` are overridden from `daily_stock[D-1]`
+- This ensures the New Stk (Cs) and New Stk (Btls) columns reflect the previous day's received stock
+
 ### Sales Calculations
-- `Final Closing Balance` = `Total Closing Stock (Bottles)` x `MRP`
+- `Final Closing Balance` = `Total Closing Stock (Bottles)` x `MRP` (or sales_mrp if override exists)
 
 ## User Preferences
 

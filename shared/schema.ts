@@ -183,6 +183,23 @@ export const insertShopDetailSchema = createInsertSchema(shopDetails).omit({
 export type ShopDetail = typeof shopDetails.$inferSelect;
 export type InsertShopDetail = z.infer<typeof insertShopDetailSchema>;
 
+// Sales MRP overrides — per-brand MRP used in sales calculations instead of stock MRP
+export const salesMrpDetails = pgTable("sales_mrp_details", {
+  id: serial("id").primaryKey(),
+  brandNumber: text("brand_number").notNull(),
+  brandName: text("brand_name").notNull(),
+  size: text("size").notNull(),
+  quantityPerCase: integer("quantity_per_case").notNull(),
+  salesMrp: numeric("sales_mrp").notNull().default('0'),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("sales_mrp_brand_size_idx").on(table.brandNumber, table.brandName, table.size, table.quantityPerCase),
+]);
+
+export const insertSalesMrpDetailSchema = createInsertSchema(salesMrpDetails).omit({ id: true, updatedAt: true });
+export type SalesMrpDetail = typeof salesMrpDetails.$inferSelect;
+export type InsertSalesMrpDetail = z.infer<typeof insertSalesMrpDetailSchema>;
+
 // Request types
 export type BulkCreateDailySalesRequest = InsertDailySale[];
 export type BulkCreateOrdersRequest = InsertOrder[];
