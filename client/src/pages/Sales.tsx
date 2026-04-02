@@ -600,17 +600,46 @@ export default function Sales() {
               </button>
             </div>
 
-            {isSubmitted && (
+            {isSubmitted ? (
               <div className="flex items-center gap-2 px-6 py-2 bg-emerald-100 text-emerald-700 rounded-xl font-medium border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-locked-buttons">
                 <Lock className="w-4 h-4" />
                 Locked
               </div>
-            )}
-            {!isSubmitted && !isDateAllowedForAction && (
+            ) : !isDateAllowedForAction ? (
               <div className="flex items-center gap-2 px-6 py-2 bg-amber-50 text-amber-700 rounded-xl font-medium border border-amber-200 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400" data-testid="status-date-restricted">
                 <Lock className="w-4 h-4" />
                 Date outside allowed range
               </div>
+            ) : (
+              <>
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  data-testid="button-save-sales"
+                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSaving ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  Save Sales
+                </button>
+
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting || localSales.length === 0}
+                  data-testid="button-submit-sales"
+                  className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl font-medium shadow-lg hover:bg-emerald-700 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  Submit Sales
+                </button>
+              </>
             )}
           </div>
         </div>
