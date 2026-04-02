@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSales, useBulkUpdateSales, useSubmitSales, useSalesIsSubmitted } from "@/hooks/use-sales";
 import {
   Search,
@@ -12,7 +12,7 @@ import {
   Send,
   Calendar as CalendarIcon,
 } from "lucide-react";
-import { type DailySale, type ShopDetail } from "@shared/schema";
+import { type DailySale, type ShopDetail, type Order } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { PaginationCustom } from "@/components/ui/pagination-custom";
 import { apiRequest } from "@/lib/queryClient";
@@ -71,14 +71,71 @@ export default function Sales() {
     queryKey: ["/api/shop-details"],
   });
 
-  const { data: summary } = useQuery<SalesSummary>({
-    queryKey: ["/api/sales/summary", selectedDate],
+  // Orders — needed to map brand → product type for category breakdown
+  const { data: orders } = useQuery<Order[]>({
+    queryKey: ["/api/orders"],
+  });
+  const orderTypeMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    (orders || []).forEach((o) => { map[o.brandNumber] = o.productType; });
+    return map;
+  }, [orders]);
+
+  // Previous day's saved sales — used to calculate Opening Balance Value
+  const prevDateStr = useMemo(() => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }, [selectedDate]);
+
+  const { data: prevDaySales } = useQuery<DailySale[]>({
+    queryKey: ["/api/sales/prevday", selectedDate],
     queryFn: async () => {
-      const res = await fetch(`/api/sales/summary?date=${selectedDate}`);
-      if (!res.ok) throw new Error("Failed to fetch sales summary");
+      const res = await fetch(`/api/sales?date=${prevDateStr}`);
+      if (!res.ok) return [];
       return res.json();
     },
   });
+
+  // Compute summary client-side from localSales so it updates in real-time
+  const summary = useMemo<SalesSummary>(() => {
+    const openingBalanceValue = (prevDaySales || []).reduce(
+      (acc, s) => acc + (parseFloat(s.finalClosingBalance as string) || 0),
+      0
+    );
+
+    let newStockValue = 0;
+    let soldStockValue = 0;
+    const categories: Record<string, { opening: number; newStock: number; sold: number; closing: number }> = {};
+
+    for (const s of localSales) {
+      const mrp = parseFloat(s.mrp as string) || 0;
+      const qtyPerCase = s.quantityPerCase || 0;
+      const opBal = s.openingBalanceBottles || 0;
+      const newCs = s.newStockCases || 0;
+      const newBtls = s.newStockBottles || 0;
+      const soldBtls = s.soldBottles || 0;
+      const totalClosing = s.totalClosingStock || 0;
+
+      // New Stock bottles = (New Stk Cs × Qty/Cs) + New Stk Btls
+      const newStockBottlesCalc = (newCs * qtyPerCase) + newBtls;
+
+      newStockValue += newStockBottlesCalc * mrp;
+      soldStockValue += soldBtls * mrp;
+
+      const pType = orderTypeMap[s.brandNumber] || "Other";
+      if (!categories[pType]) {
+        categories[pType] = { opening: 0, newStock: 0, sold: 0, closing: 0 };
+      }
+      categories[pType].opening += opBal;
+      categories[pType].newStock += newStockBottlesCalc;
+      categories[pType].sold += soldBtls;
+      categories[pType].closing += totalClosing;
+    }
+
+    const closingBalanceValue = openingBalanceValue + newStockValue - soldStockValue;
+    return { openingBalanceValue, newStockValue, soldStockValue, closingBalanceValue, categories };
+  }, [localSales, prevDaySales, orderTypeMap]);
 
   const { mutate: syncFromStock, isPending: isSyncing } = useMutation({
     mutationFn: async () => {
@@ -543,46 +600,17 @@ export default function Sales() {
               </button>
             </div>
 
-            {isSubmitted ? (
+            {isSubmitted && (
               <div className="flex items-center gap-2 px-6 py-2 bg-emerald-100 text-emerald-700 rounded-xl font-medium border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-locked-buttons">
                 <Lock className="w-4 h-4" />
                 Locked
               </div>
-            ) : !isDateAllowedForAction ? (
+            )}
+            {!isSubmitted && !isDateAllowedForAction && (
               <div className="flex items-center gap-2 px-6 py-2 bg-amber-50 text-amber-700 rounded-xl font-medium border border-amber-200 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400" data-testid="status-date-restricted">
                 <Lock className="w-4 h-4" />
                 Date outside allowed range
               </div>
-            ) : (
-              <>
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  data-testid="button-save-sales"
-                  className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-xl font-medium shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSaving ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4" />
-                  )}
-                  Save Sales
-                </button>
-
-                <button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || localSales.length === 0}
-                  data-testid="button-submit-sales"
-                  className="flex items-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl font-medium shadow-lg hover:bg-emerald-700 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  Submit Sales
-                </button>
-              </>
             )}
           </div>
         </div>
@@ -753,46 +781,17 @@ export default function Sales() {
         />
 
         <div className="p-4 border-t border-border bg-secondary/20 flex justify-end gap-3">
-          {isSubmitted ? (
+          {isSubmitted && (
             <div className="flex items-center gap-2 px-8 py-3 bg-emerald-100 text-emerald-700 rounded-xl font-bold border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-locked-footer">
               <CheckCircle className="w-5 h-5" />
               Sales Submitted & Locked
             </div>
-          ) : !isDateAllowedForAction ? (
+          )}
+          {!isSubmitted && !isDateAllowedForAction && (
             <div className="flex items-center gap-2 px-8 py-3 bg-amber-50 text-amber-700 rounded-xl font-bold border border-amber-200 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400" data-testid="status-date-restricted-footer">
               <Lock className="w-5 h-5" />
               Date outside allowed range
             </div>
-          ) : (
-            <>
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                data-testid="button-save-sales-footer"
-                className="flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/25 hover:bg-primary/90 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50"
-              >
-                {isSaving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Save className="w-4 h-4" />
-                )}
-                {isSaving ? "Saving..." : "Save Sales Data"}
-              </button>
-
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting || localSales.length === 0}
-                data-testid="button-submit-sales-footer"
-                className="flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg hover:bg-emerald-700 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                {isSubmitting ? "Submitting..." : "Submit Sales"}
-              </button>
-            </>
           )}
         </div>
       </div>
