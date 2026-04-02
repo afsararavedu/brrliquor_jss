@@ -104,18 +104,25 @@ export default function Sales() {
       0
     );
 
+    // Opening Stock in bottles per type = previous day's totalClosingStock per type
+    const categories: Record<string, { opening: number; newStock: number; sold: number; closing: number }> = {};
+    for (const s of (prevDaySales || [])) {
+      const pType = orderTypeMap[s.brandNumber] || "Other";
+      if (!categories[pType]) {
+        categories[pType] = { opening: 0, newStock: 0, sold: 0, closing: 0 };
+      }
+      categories[pType].opening += (s.totalClosingStock || 0);
+    }
+
     let newStockValue = 0;
     let soldStockValue = 0;
-    const categories: Record<string, { opening: number; newStock: number; sold: number; closing: number }> = {};
 
     for (const s of localSales) {
       const mrp = parseFloat(s.mrp as string) || 0;
       const qtyPerCase = s.quantityPerCase || 0;
-      const opBal = s.openingBalanceBottles || 0;
       const newCs = s.newStockCases || 0;
       const newBtls = s.newStockBottles || 0;
       const soldBtls = s.soldBottles || 0;
-      const totalClosing = s.totalClosingStock || 0;
 
       // New Stock bottles = (New Stk Cs × Qty/Cs) + New Stk Btls
       const newStockBottlesCalc = (newCs * qtyPerCase) + newBtls;
@@ -127,10 +134,13 @@ export default function Sales() {
       if (!categories[pType]) {
         categories[pType] = { opening: 0, newStock: 0, sold: 0, closing: 0 };
       }
-      categories[pType].opening += opBal;
       categories[pType].newStock += newStockBottlesCalc;
       categories[pType].sold += soldBtls;
-      categories[pType].closing += totalClosing;
+    }
+
+    // Closing Stock per type = Opening + New Stock - Sold (formula-based)
+    for (const pType of Object.keys(categories)) {
+      categories[pType].closing = categories[pType].opening + categories[pType].newStock - categories[pType].sold;
     }
 
     const closingBalanceValue = openingBalanceValue + newStockValue - soldStockValue;
