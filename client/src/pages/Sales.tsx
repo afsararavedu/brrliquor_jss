@@ -600,7 +600,7 @@ export default function Sales() {
               </button>
             </div>
 
-            {isSubmitted ? (
+            {isSubmitted && !isAdmin ? (
               <div className="flex items-center gap-2 px-6 py-2 bg-emerald-100 text-emerald-700 rounded-xl font-medium border border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-700 dark:text-emerald-400" data-testid="status-locked-buttons">
                 <Lock className="w-4 h-4" />
                 Locked
