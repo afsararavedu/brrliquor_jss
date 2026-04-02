@@ -386,8 +386,6 @@ export default function Sales() {
   const paginatedSales = filteredSales.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const formatCurrency = (val: number) => {
-    if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)}Cr`;
-    if (val >= 100000) return `₹${(val / 100000).toFixed(2)}L`;
     return `₹${val.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
