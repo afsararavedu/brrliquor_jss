@@ -72,7 +72,12 @@ export default function Sales() {
   });
 
   const { data: summary } = useQuery<SalesSummary>({
-    queryKey: ["/api/sales/summary"],
+    queryKey: ["/api/sales/summary", selectedDate],
+    queryFn: async () => {
+      const res = await fetch(`/api/sales/summary?date=${selectedDate}`);
+      if (!res.ok) throw new Error("Failed to fetch sales summary");
+      return res.json();
+    },
   });
 
   const { mutate: syncFromStock, isPending: isSyncing } = useMutation({

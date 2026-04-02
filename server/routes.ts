@@ -678,24 +678,37 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/sales/summary", async (_req, res) => {
+  app.get("/api/sales/summary", async (req, res) => {
     try {
-      const allSales = await storage.getDailySales();
-      const allOrders = await storage.getOrders();
+      const date = (req.query.date as string) || new Date().toISOString().split("T")[0];
 
+      // Today's sales for the requested date
+      const todaySales = await storage.getDailySalesByDate(date);
+
+      // Previous day's sales — for Opening Balance Value
+      const prevDate = new Date(date);
+      prevDate.setDate(prevDate.getDate() - 1);
+      const prevDateStr = prevDate.toISOString().split("T")[0];
+      const prevSales = await storage.getDailySalesByDate(prevDateStr);
+
+      // Opening Balance Value = sum of previous day's finalClosingBalance (0 if no prev data)
+      const openingBalanceValue = prevSales.reduce(
+        (acc, s) => acc + (parseFloat(s.finalClosingBalance as string) || 0),
+        0
+      );
+
+      const allOrders = await storage.getOrders();
       const orderTypeMap: Record<string, string> = {};
       for (const o of allOrders) {
         orderTypeMap[o.brandNumber] = o.productType;
       }
 
-      let openingBalanceValue = 0;
       let newStockValue = 0;
       let soldStockValue = 0;
-      let closingBalanceValue = 0;
 
       const categories: Record<string, { opening: number; newStock: number; sold: number; closing: number }> = {};
 
-      for (const s of allSales) {
+      for (const s of todaySales) {
         const mrp = parseFloat(s.mrp as string) || 0;
         const qtyPerCase = s.quantityPerCase || 0;
         const opBal = s.openingBalanceBottles || 0;
@@ -704,22 +717,25 @@ export async function registerRoutes(
         const soldBtls = s.soldBottles || 0;
         const totalClosing = s.totalClosingStock || 0;
 
-        const newStockTotal = (newCs * qtyPerCase) + newBtls;
+        // New Stock in bottles = Total Stk - Op. Bal (Btls) = newStockCases * qty + newStockBottles
+        const newStockBottlesCalc = (newCs * qtyPerCase) + newBtls;
 
-        openingBalanceValue += opBal * mrp;
-        newStockValue += newStockTotal * mrp;
+        // New Stock Value = MRP × (Total Stk − Op. Bal Btls)
+        newStockValue += newStockBottlesCalc * mrp;
         soldStockValue += soldBtls * mrp;
-        closingBalanceValue += totalClosing * mrp;
 
         const pType = orderTypeMap[s.brandNumber] || "Other";
         if (!categories[pType]) {
           categories[pType] = { opening: 0, newStock: 0, sold: 0, closing: 0 };
         }
         categories[pType].opening += opBal;
-        categories[pType].newStock += newStockTotal;
+        categories[pType].newStock += newStockBottlesCalc;
         categories[pType].sold += soldBtls;
         categories[pType].closing += totalClosing;
       }
+
+      // Closing Balance Value = Opening + New Stock - Sold Stock
+      const closingBalanceValue = openingBalanceValue + newStockValue - soldStockValue;
 
       res.json({
         openingBalanceValue,
