@@ -140,7 +140,7 @@ export default function Stock() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Stock Value" value={`₹ ${(totalValue / 100000).toFixed(2)}L`} icon={TrendingUp} trend="+3.2%" trendUp={true} />
+        <StatCard title="Total Stock Value" value={`₹${totalValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`} icon={TrendingUp} trend="+3.2%" trendUp={true} />
         <StatCard title="Total Bottles" value={totalBottles.toLocaleString()} icon={Package} />
         <StatCard title="Total Cases" value={Math.floor(totalBottles / 12).toLocaleString()} icon={Boxes} />
         <StatCard title="Total Breakage" value={totalBreakage.toString()} icon={AlertTriangle} />

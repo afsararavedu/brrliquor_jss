@@ -497,8 +497,8 @@ export default function Sales() {
         <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-new-stock">
           <p className="text-xs font-medium text-muted-foreground mb-2">New Stock in bottles</p>
           <div className="space-y-1 text-sm font-semibold text-foreground">
-            <p>IML - {imlCount("newStock").toLocaleString()}</p>
-            <p>Beer - {beerCount("newStock").toLocaleString()}</p>
+            <p>IML - {imlCount("newStock")}</p>
+            <p>Beer - {beerCount("newStock")}</p>
           </div>
         </div>
         <div className="bg-card rounded-xl p-4 border border-border shadow-sm" data-testid="card-sold-stock">
